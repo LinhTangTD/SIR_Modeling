@@ -4,7 +4,7 @@
 
 `SIR_Modeling` is a project focuses on developing and examining the effects of different parameters on Susceptible-Infected-Recovered (SIR) models. The COVID-19 pandemic has led to the use of numerous epidemic models based upon SIR. Our goal is to understand the complexities of infectious diseases via 2 models: with and without intervention measures, as well as to underpin such models with real world data to understand their predictive capabilities and limitations.Home.
 
-The models developed in R by [Linh Tang](https://linhtang.me/), [Britney He](https://github.com/britneyhe), and [Bowen Mince](https://github.com/minceb) under the mentorship of Professor Shona Kuiper as the final project for `STA310: Statistical Modeling` class at [Grinnell College](https://www.grinnell.edu/) during Fall 2020. 
+The models developed in R by [Linh Tang](https://linhtang.me/), [Britney He](https://github.com/britneyhe), and [Bowen Mince](https://github.com/minceb) under the mentorship of Professor [Shonda Kuiper](https://www.grinnell.edu/user/kuipers) as the final project for `STA310: Statistical Modeling` class at [Grinnell College](https://www.grinnell.edu/) during Fall 2020. 
 
 ## About SIR Model
 
