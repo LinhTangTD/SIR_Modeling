@@ -1,0 +1,75 @@
+---
+title: "SIR Modeling"
+author: "Linh, Britney, Bowen"
+output: html_notebook
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+library(mosaic)
+library(ggplot2)
+```
+
+## Basic SIR Model
+
+### Assumption
+* The recovered (R) compartment will no longer be susceptible
+* No treatment is given, disease ends due to herd immunity
+
+### Parameters with default values:
+
+* Population $(n = 500)$
+
+* Transmission/Infection Rate $(\beta = 0.01)$
+
+* Recovery Rate $(\gamma =  0.7)$
+
+* Percentage of healthy individual that are susceptible $(S_{rate} = 0.2)$
+
+* Initial number of infected individual $(I = 5)$
+
+* Number of days since first case $(t = 50)$
+
+```{r}
+# H = healthy, S = susceptible, I = infected, I.next = infected next day, Tr = treat, R = recovered
+
+basic.model = function(n = 500, beta = 0.01, gamma = 0.7, S.rate = 0.2, I = 5, t = 50){
+  curr.day = 0
+  healthy = n - I
+  susceptible = round(S.rate * healthy)
+  infected = I
+  infected.next = round(I * beta * susceptible)
+  treat = round(gamma * I)
+  recovered = 0
+  
+  df = data_frame(Day = curr.day, Healthy = healthy, Susceptible = susceptible, Infected = infected, Recovered = recovered)
+  # df = data_frame(Day = curr.day, Healthy = healthy, Susceptible = susceptible, Infected = infected, I.next = infected.next, Tr = treat, R = recovered)
+  
+  for(i in 1:t){
+    if(infected == 0)
+      break()
+    curr.day = curr.day + 1
+    healthy = healthy - infected.next
+    susceptible = round(S.rate * healthy)
+    infected = infected + infected.next - treat
+    infected.next = round(infected * beta * susceptible)
+    treat = round(gamma * infected)
+    recovered = recovered + treat
+    data = c(curr.day, healthy, susceptible, infected, recovered)
+    # data = c(curr.day, healthy, susceptible, infected, infected.next, treat, recovered)
+    df = rbind(df, data)
+  }
+  return(df)
+}
+
+model.plot = function(model){
+  ggplot(data  = model, aes(x = Day)) +
+         geom_line(aes(y = Healthy), color = "Green") +
+         geom_line(aes(y = Infected), color = "Red") +
+         geom_line(aes(y = Recovered), color = "Blue") + theme_minimal()
+}
+
+df = basic.model(t = 1000)
+df
+model.plot(df)
+```
