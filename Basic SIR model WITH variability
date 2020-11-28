@@ -66,7 +66,7 @@ model.plot = function(model){
   ggplot(data  = model, aes(x = Day)) +
          geom_line(aes(y = Healthy), color = "Green") +
          geom_line(aes(y = Infected), color = "Red") +
-         geom_line(aes(y = Recovered), color = "Blue") +          theme_minimal() + 
+         geom_line(aes(y = Recovered), color = "Blue") + theme_minimal() + 
          labs(y = "People")
 }
 df = basic.model(t = 500)
