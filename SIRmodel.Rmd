@@ -30,10 +30,10 @@ library(ggplot2)
 
 * Number of days since first case $(t = 50)$
 
-```{r}
-# H = healthy, S = susceptible, I = infected, I.next = infected next day, Tr = treat, R = recovered
-
-basic.model = function(n = 500, beta = 0.01, gamma = 0.7, S.rate = 0.2, I = 5, t = 50){
+```{r model.func}
+basic.model = function(n = 500, beta = 0.01, gamma = 0.7, S.rate = 0.2, I = 5, t = -1){
+  
+  # Calculate day 0 statistics
   curr.day = 0
   healthy = n - I
   susceptible = round(S.rate * healthy)
@@ -42,12 +42,14 @@ basic.model = function(n = 500, beta = 0.01, gamma = 0.7, S.rate = 0.2, I = 5, t
   treat = round(gamma * I)
   recovered = 0
   
+  # Table storing S, I, R compartments over time
   df = data_frame(Day = curr.day, Healthy = healthy, Susceptible = susceptible, Infected = infected, Recovered = recovered)
-  # df = data_frame(Day = curr.day, Healthy = healthy, Susceptible = susceptible, Infected = infected, I.next = infected.next, Tr = treat, R = recovered)
   
-  for(i in 1:t){
-    if(infected == 0)
-      break()
+  # Predict S, I, R compartments by day
+  while(infected > 0){
+    # if number of days is specified, calculate up until that day
+    if(t != -1 & curr.day >= t)
+       break()
     curr.day = curr.day + 1
     healthy = healthy - infected.next
     susceptible = round(S.rate * healthy)
@@ -61,15 +63,22 @@ basic.model = function(n = 500, beta = 0.01, gamma = 0.7, S.rate = 0.2, I = 5, t
   }
   return(df)
 }
+```
 
+```{r plot_func}
 model.plot = function(model){
   ggplot(data  = model, aes(x = Day)) +
-         geom_line(aes(y = Healthy), color = "Green") +
-         geom_line(aes(y = Infected), color = "Red") +
-         geom_line(aes(y = Recovered), color = "Blue") + theme_minimal()
+    geom_line(aes(y = Healthy, color = "Green")) +
+    geom_line(aes(y = Infected, color = "Red")) +
+    geom_line(aes(y = Recovered, color = "Blue")) + 
+    scale_color_discrete(name = "Compartment", labels = c("Healthy", "Infected", "Recovered")) +
+    labs(y = "Population", title = "Basic SIR Model") + 
+    theme_minimal()
 }
+```
 
-df = basic.model(t = 1000)
+```{r test}
+df = basic.model(t = 50)
 df
 model.plot(df)
 ```
