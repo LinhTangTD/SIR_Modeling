@@ -1,0 +1,139 @@
+---
+title: "Complex SIR model"
+author: "Linh, Britney, Bowen"
+output: html_notebook
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+library(mosaic)
+library(ggplot2)
+```
+
+## Complex SIR Model
+
+### Assumption
+
+* The recovered (R) compartment will no longer be susceptible
+
+### Parameters with default values:
+
+* Population $(N = 800)$
+
+* Transmission/Infection Rate $(r = 0.01)$
+
+* Percentage of healthy individuals with symptoms $(g = 0.1)$
+
+* Initial number of infected individuals day1 $(d_1 = 40)$
+
+* Initial number of cured individuals day1 $(c_1 = 0)$
+
+* Percentage of individuals receiving Treatment A $(PTA = 0.5)$
+
+* Percentage of individuals receiving Treatment B $(PTB = 0.5)$
+
+* Treatment A effectiveness $(A_{eff} = 0.65)$
+
+* Treatment B effectiveness $(B_{eff} = 0.45)$
+
+* Treatment A cost $(A_{cost} = 25.00)$
+
+* Treatment B cost $(B_{cost} = 15.00)$
+
+* Number of days since first case $(day = 38)$
+
+```{r model.norand}
+complex.model.norand = function(N=800, r=0.01, g=0.1, d1=40, c1=0, PTA=0.5, PTB=0.5, A.eff=0.65, B.eff=0.45, day = -1, A.cost = 25, B.cost = 15){
+  
+  # Initial conditions
+  curr.day = 1
+  d = d1
+  c = c1
+  
+  # Calculate initial statistics
+  h = N - d
+  hs = round(g * h)
+  s = hs + d
+  NAT = s
+  NTA = round(PTA * NAT)
+  NTB = min(NAT - NTA, round(PTB * NAT))
+  NDAT = d
+  NDTA = round(PTA * NDAT)
+  NDTB = min(NDAT - NDTA, round(PTB * NDAT))
+  DCA = round(NDTA * A.eff)
+  DCB = round(NDTB * B.eff)
+  SDC = DCA + DCB
+  c = c + SDC
+  New = min(N - c - d, round(r * hs * d))
+  # Table storing S, I, R compartments over time
+  df = data_frame(Day = curr.day, 
+                  Healthy = h,
+                  Symptopms = hs,
+                  Diseased = d,
+                  Tot.Symp = s,
+                  Avail.TRT.Tot = NAT,
+                  TRT.A.Tot = NTA,
+                  TRT.B.Tot = NTB,
+                  Avail.TRT.Dis = NDAT,
+                  TRT.A.Dis = NDTA, 
+                  TRT.B.Dis = NDTB, 
+                  TRT.A.Cure = DCA, 
+                  TRT.B.Cure = DCB,
+                  Sum.Dis.Cured = SDC,
+                  Cured = c,
+                  Catch.Dis = New)
+  
+  # Predict S, I, R compartments by day
+  while(day == -1 & d > 0 | (day != -1 & curr.day < day)){
+    # if number of days is specified, calculate up until that day
+    # else calculate until there is no more diseased individual
+    
+    curr.day = curr.day + 1
+    d = d + New - SDC
+    h = N - d - c
+    hs = round(g * h)
+    s = hs + d
+    NAT = s
+    NTA = round(PTA * NAT)
+    NTB = min(NAT - NTA, round(PTB * NAT))
+    NDAT = d
+    NDTA = round(PTA * NDAT)
+    NDTB = min(NDAT - NDTA, round(PTB * NDAT))
+    DCA = round(NDTA * A.eff)
+    DCB = round(NDTB * B.eff)
+    SDC = DCA + DCB
+    c = c + SDC
+    New = min(N - c - d, round(r * hs * d))
+    
+    data = c(curr.day, h, hs, d, s,
+             NAT, NTA, NTB, NDAT, NDTA, NDTA, DCA, DCB,
+             SDC, c, New)
+    df = rbind(df, data)
+  }
+  df$Cost = df$TRT.A.Tot * A.cost + df$TRT.B.Tot * B.cost
+  return(df)
+}
+```
+
+```{r plot_func}
+model.plot = function(model){
+  cost = sum(model$Cost)
+  sick = max(model$Cured)
+  ggplot(data  = model, aes(x = Day)) +
+    geom_line(aes(y = Healthy, color = "Healthy")) +
+    geom_line(aes(y = Diseased, color = "Diseased")) +
+    geom_line(aes(y = Cured, color = "Cured")) +
+    scale_color_discrete(name = "Compartment") +
+    labs(y = "Population", title = paste("Complex SIR Model: sick = ", sick, ", total cost = $", cost, sep = "")) +
+    theme_minimal()
+}
+```
+
+### Test No-Random Model for 38 days
+
+```{r test1}
+df = complex.model.norand(day = 38)
+df
+model.plot(df)
+```
+
