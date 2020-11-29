@@ -36,10 +36,14 @@ library(ggplot2)
 
 * Treatment B effectiveness $(B_{eff} = 0.45)$
 
-* Number of days since first case $(day = 40)$
+* Treatment A cost $(A_{cost} = 25.00)$
+
+* Treatment B cost $(B_{cost} = 15.00)$
+
+* Number of days since first case $(day = 38)$
 
 ```{r model.norand}
-complex.model.norand = function(N=800, r=0.01, g=0.1, d1=40, c1=0, PTA=0.5, PTB=0.5, Aeff=0.65, Beff=0.45, day = 40){
+complex.model.norand = function(N=800, r=0.01, g=0.1, d1=40, c1=0, PTA=0.5, PTB=0.5, A.eff=0.65, B.eff=0.45, day = -1, A.cost = 25, B.cost = 15){
   
   # Initial conditions
   curr.day = 1
@@ -51,17 +55,16 @@ complex.model.norand = function(N=800, r=0.01, g=0.1, d1=40, c1=0, PTA=0.5, PTB=
   hs = round(g * h)
   s = hs + d
   NAT = s
-  NTA = PTA * NAT
+  NTA = round(PTA * NAT)
   NTB = min(NAT - NTA, round(PTB * NAT))
   NDAT = d
   NDTA = round(PTA * NDAT)
   NDTB = min(NDAT - NDTA, round(PTB * NDAT))
-  DCA = round(NDTA * Aeff)
-  DCB = round(NDTB * Beff)
+  DCA = round(NDTA * A.eff)
+  DCB = round(NDTB * B.eff)
   SDC = DCA + DCB
   c = c + SDC
   New = min(N - c - d, round(r * hs * d))
-  
   # Table storing S, I, R compartments over time
   df = data_frame(Day = curr.day, 
                   Healthy = h,
@@ -81,11 +84,10 @@ complex.model.norand = function(N=800, r=0.01, g=0.1, d1=40, c1=0, PTA=0.5, PTB=
                   Catch.Dis = New)
   
   # Predict S, I, R compartments by day
-  while(d > 0){
+  while(day == -1 & d > 0 | (day != -1 & curr.day < day)){
     # if number of days is specified, calculate up until that day
-    if(day != -1 & curr.day > day)
-       break()
-
+    # else calculate until there is no more diseased individual
+    
     curr.day = curr.day + 1
     d = d + New - SDC
     h = N - d - c
@@ -97,8 +99,8 @@ complex.model.norand = function(N=800, r=0.01, g=0.1, d1=40, c1=0, PTA=0.5, PTB=
     NDAT = d
     NDTA = round(PTA * NDAT)
     NDTB = min(NDAT - NDTA, round(PTB * NDAT))
-    DCA = round(NDTA * Aeff)
-    DCB = round(NDTB * Beff)
+    DCA = round(NDTA * A.eff)
+    DCB = round(NDTB * B.eff)
     SDC = DCA + DCB
     c = c + SDC
     New = min(N - c - d, round(r * hs * d))
@@ -108,28 +110,29 @@ complex.model.norand = function(N=800, r=0.01, g=0.1, d1=40, c1=0, PTA=0.5, PTB=
              SDC, c, New)
     df = rbind(df, data)
   }
+  df$Cost = df$TRT.A.Tot * A.cost + df$TRT.B.Tot * B.cost
   return(df)
 }
 ```
 
-### Plotting function
-
 ```{r plot_func}
 model.plot = function(model){
+  cost = sum(model$Cost)
+  sick = max(model$Cured)
   ggplot(data  = model, aes(x = Day)) +
     geom_line(aes(y = Healthy, color = "Healthy")) +
     geom_line(aes(y = Diseased, color = "Diseased")) +
     geom_line(aes(y = Cured, color = "Cured")) +
     scale_color_discrete(name = "Compartment") +
-    labs(y = "Population", title = "Complex SIR Model") + 
+    labs(y = "Population", title = paste("Complex SIR Model: sick = ", sick, ", total cost = $", cost, sep = "")) +
     theme_minimal()
 }
 ```
 
-### Test No-Random Model
+### Test No-Random Model for 38 days
 
 ```{r test1}
-df = complex.model.norand()
+df = complex.model.norand(day = 38)
 df
 model.plot(df)
 ```
@@ -147,8 +150,10 @@ model.plot(df)
 
 * Test specificity $(tn = 0.95)$
 
+* Testing cost $(Test.cost = 1)$
+
 ```{r model.rand}
-complex.model.rand = function(N=300, r=0.01, g=0.2, d1=5, c1=0, u1=0, PS=1, tp=0.99, tn=0.95, PTA=1, PTB=0, Aeff=0.75, Beff=0.25, day = 40){
+complex.model.rand = function(N=300, r=0.01, g=0.2, d1=5, c1=0, u1=0, PS=1, tp=0.99, tn=0.95, PTA=1, PTB=0, A.eff=0.75, B.eff=0.25, day = -1, A.cost = 20, B.cost = 15, Test.cost = 1){
   
   # Initial conditions
   curr.day = 1
@@ -205,11 +210,10 @@ complex.model.rand = function(N=300, r=0.01, g=0.2, d1=5, c1=0, u1=0, PS=1, tp=0
                   Catch.Dis = New)
   
   # Predict S, I, R compartments by day
-  while(d > 0){
+  while(day == -1 & d > 0 | (day != -1 & curr.day < day)){
     # if number of days is specified, calculate up until that day
-    if(day != -1 & curr.day > day)
-       break()
-
+    # else calculate until there is no more diseased individual
+    
     # Update current day and c, u, d
     curr.day = curr.day + 1
     c = c + SDC
@@ -230,8 +234,8 @@ complex.model.rand = function(N=300, r=0.01, g=0.2, d1=5, c1=0, u1=0, PS=1, tp=0
     NDAT = tpd + u
     NDTA = round(PTA * NDAT)
     NDTB = min(NDAT - NDTA, round(PTB * NDAT))
-    DCA = min(NDTA, round(NDTA * Aeff))
-    DCB = min(NDTB, round(NDTB * Beff))
+    DCA = min(NDTA, round(NDTA * A.eff))
+    DCB = min(NDTB, round(NDTB * B.eff))
     if (curr.day == 2){
       NAT = tpt + tpt1
     }
@@ -249,18 +253,21 @@ complex.model.rand = function(N=300, r=0.01, g=0.2, d1=5, c1=0, u1=0, PS=1, tp=0
              SDC, c, New)
     df = rbind(df, data)
   }
+  df$Cost = df$TRT.A.Tot * A.cost + df$TRT.B.Tot * B.cost + df$Screen.Tot * Test.cost
   return(df)
 }
 ```
 
-### Test Random Model
+### Test Random Model for 38 days
 
 $N = 300, r = 0.01, g = 0.2, d_1 = 5, c_1 = 0, u_1 = 0$
 
 $PS = 1, tp = 0.99, tn = 0.95, PTA = 1, PTB = 0, A_{eff} = 0.75, B_{eff} = 0.25$
 
+$Test.cost = \$1.00, A_{cost} = \$20.00, B_{cost} = \$15.00$
+
 ```{r test2}
-df = complex.model.rand()
+df = complex.model.rand(day = 38)
 df
 model.plot(df)
 ```
