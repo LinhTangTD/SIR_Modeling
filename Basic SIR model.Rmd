@@ -1,5 +1,5 @@
 ---
-title: "SIR Modeling"
+title: "Basic SIR Model"
 author: "Linh, Britney, Bowen"
 output: html_notebook
 ---
@@ -28,10 +28,10 @@ library(ggplot2)
 
 * Initial number of infected individual $(I = 5)$
 
-* Number of days since first case $(t = 50)$
+* Number of days since first case $(day = 50)$
 
 ```{r model.func}
-basic.model = function(n = 500, beta = 0.01, gamma = 0.7, S.rate = 0.2, I = 5, t = -1){
+basic.model = function(n = 500, beta = 0.01, gamma = 0.7, S.rate = 0.2, I = 5, day = -1){
   
   # Calculate day 0 statistics
   curr.day = 0
@@ -46,9 +46,9 @@ basic.model = function(n = 500, beta = 0.01, gamma = 0.7, S.rate = 0.2, I = 5, t
   df = data_frame(Day = curr.day, Healthy = healthy, Susceptible = susceptible, Infected = infected, Recovered = recovered)
   
   # Predict S, I, R compartments by day
-  while(infected > 0){
+  while(infected > 1){
     # if number of days is specified, calculate up until that day
-    if(t != -1 & curr.day >= t)
+    if(day != -1 & curr.day >= day)
        break()
     curr.day = curr.day + 1
     healthy = healthy - infected.next
@@ -68,17 +68,54 @@ basic.model = function(n = 500, beta = 0.01, gamma = 0.7, S.rate = 0.2, I = 5, t
 ```{r plot_func}
 model.plot = function(model){
   ggplot(data  = model, aes(x = Day)) +
-    geom_line(aes(y = Healthy, color = "Green")) +
-    geom_line(aes(y = Infected, color = "Red")) +
-    geom_line(aes(y = Recovered, color = "Blue")) + 
-    scale_color_discrete(name = "Compartment", labels = c("Healthy", "Infected", "Recovered")) +
+    geom_line(aes(y = Healthy, color = "Healthy")) +
+    geom_line(aes(y = Infected, color = "Infected")) +
+    geom_line(aes(y = Recovered, color = "Recovered")) +
+    scale_color_discrete(name = "Compartment") +
     labs(y = "Population", title = "Basic SIR Model") + 
     theme_minimal()
 }
 ```
 
-```{r test}
-df = basic.model(t = 50)
+### 70% Recovery Rate
+
+```{r 70model}
+df = basic.model()
 df
+model.plot(df)
+```
+
+### 100% Recovery Rate
+
+```{r 100model}
+df = basic.model(gamma = 1)
+model.plot(df)
+```
+
+### 75% Recovery Rate
+
+```{r 75model}
+df = basic.model(gamma = 0.75)
+model.plot(df)
+```
+
+### 50% Recovery Rate
+
+```{r 50model}
+df = basic.model(gamma = 0.5)
+model.plot(df)
+```
+
+### 25% Recovery Rate
+
+```{r 25model}
+df = basic.model(gamma = 0.25, day = 40)
+model.plot(df)
+```
+
+### 0% Recovery Rate
+
+```{r 0model}
+df = basic.model(gamma = 0, day = 40)
 model.plot(df)
 ```
