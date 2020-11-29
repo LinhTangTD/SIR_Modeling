@@ -1,5 +1,5 @@
 ---
-title: "SIR Modeling with Variability"
+title: "Basic SIR Model with Variability"
 author: "Linh, Britney, Bowen"
 output: html_notebook
 ---
