@@ -1,0 +1,266 @@
+---
+title: "SIR Modeling"
+author: "Linh, Britney, Bowen"
+output: html_notebook
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+library(mosaic)
+library(ggplot2)
+```
+
+## Complex SIR Model
+
+### Assumption
+
+* The recovered (R) compartment will no longer be susceptible
+
+### Parameters with default values:
+
+* Population $(N = 800)$
+
+* Transmission/Infection Rate $(r = 0.01)$
+
+* Percentage of healthy individuals with symptoms $(g = 0.1)$
+
+* Initial number of infected individuals day1 $(d_1 = 40)$
+
+* Initial number of cured individuals day1 $(c_1 = 0)$
+
+* Percentage of individuals receiving Treatment A $(PTA = 0.5)$
+
+* Percentage of individuals receiving Treatment B $(PTB = 0.5)$
+
+* Treatment A effectiveness $(A_{eff} = 0.65)$
+
+* Treatment B effectiveness $(B_{eff} = 0.45)$
+
+* Number of days since first case $(day = 40)$
+
+```{r model.norand}
+complex.model.norand = function(N=800, r=0.01, g=0.1, d1=40, c1=0, PTA=0.5, PTB=0.5, Aeff=0.65, Beff=0.45, day = 40){
+  
+  # Initial conditions
+  curr.day = 1
+  d = d1
+  c = c1
+  
+  # Calculate initial statistics
+  h = N - d
+  hs = round(g * h)
+  s = hs + d
+  NAT = s
+  NTA = PTA * NAT
+  NTB = min(NAT - NTA, round(PTB * NAT))
+  NDAT = d
+  NDTA = round(PTA * NDAT)
+  NDTB = min(NDAT - NDTA, round(PTB * NDAT))
+  DCA = round(NDTA * Aeff)
+  DCB = round(NDTB * Beff)
+  SDC = DCA + DCB
+  c = c + SDC
+  New = min(N - c - d, round(r * hs * d))
+  
+  # Table storing S, I, R compartments over time
+  df = data_frame(Day = curr.day, 
+                  Healthy = h,
+                  Symptopms = hs,
+                  Diseased = d,
+                  Tot.Symp = s,
+                  Avail.TRT.Tot = NAT,
+                  TRT.A.Tot = NTA,
+                  TRT.B.Tot = NTB,
+                  Avail.TRT.Dis = NDAT,
+                  TRT.A.Dis = NDTA, 
+                  TRT.B.Dis = NDTB, 
+                  TRT.A.Cure = DCA, 
+                  TRT.B.Cure = DCB,
+                  Sum.Dis.Cured = SDC,
+                  Cured = c,
+                  Catch.Dis = New)
+  
+  # Predict S, I, R compartments by day
+  while(d > 0){
+    # if number of days is specified, calculate up until that day
+    if(day != -1 & curr.day > day)
+       break()
+
+    curr.day = curr.day + 1
+    d = d + New - SDC
+    h = N - d - c
+    hs = round(g * h)
+    s = hs + d
+    NAT = s
+    NTA = round(PTA * NAT)
+    NTB = min(NAT - NTA, round(PTB * NAT))
+    NDAT = d
+    NDTA = round(PTA * NDAT)
+    NDTB = min(NDAT - NDTA, round(PTB * NDAT))
+    DCA = round(NDTA * Aeff)
+    DCB = round(NDTB * Beff)
+    SDC = DCA + DCB
+    c = c + SDC
+    New = min(N - c - d, round(r * hs * d))
+    
+    data = c(curr.day, h, hs, d, s,
+             NAT, NTA, NTB, NDAT, NDTA, NDTA, DCA, DCB,
+             SDC, c, New)
+    df = rbind(df, data)
+  }
+  return(df)
+}
+```
+
+### Plotting function
+
+```{r plot_func}
+model.plot = function(model){
+  ggplot(data  = model, aes(x = Day)) +
+    geom_line(aes(y = Healthy, color = "Healthy")) +
+    geom_line(aes(y = Diseased, color = "Diseased")) +
+    geom_line(aes(y = Cured, color = "Cured")) +
+    scale_color_discrete(name = "Compartment") +
+    labs(y = "Population", title = "Complex SIR Model") + 
+    theme_minimal()
+}
+```
+
+### Test No-Random Model
+
+```{r test1}
+df = complex.model.norand()
+df
+model.plot(df)
+```
+
+
+### Model upgrade with randomness: 
+
+*Additional Variables*
+
+* Initial number of known cases (untreated) day1 $(u_1 = 0)$
+
+* Percentage of individual being tested daily $(PS = 1)$
+
+* Test sensitivity $(tp = 0.99)$
+
+* Test specificity $(tn = 0.95)$
+
+```{r model.rand}
+complex.model.rand = function(N=300, r=0.01, g=0.2, d1=5, c1=0, u1=0, PS=1, tp=0.99, tn=0.95, PTA=1, PTB=0, Aeff=0.75, Beff=0.25, day = 40){
+  
+  # Initial conditions
+  curr.day = 1
+  d = d1
+  c = c1
+  u = u1
+  # Calculate initial statistics
+  h = N - d - c
+  hs = round(g * h)
+  s = hs + d
+  a = s - u
+  ns = round(PS * a)
+  ad = round(PS * (d - u))
+  as = ns - ad
+  tps = rbinom(1, as, 1-tn)
+  tpd = rbinom(1, ad, tp)
+  tpt = tps + tpd
+  tpt1 = tpt
+  NDAT = tpd + u
+  NDTA = 0
+  NDTB = 0
+  DCA = 0
+  DCB = 0
+  NAT = 0
+  NTA = 0
+  NTB = 0
+  SDC = 0
+  New = min(N - c - d, round(r * hs * d))
+  
+  # Table storing S, I, R compartments over time
+  df = data_frame(Day = curr.day, 
+                  Healthy = h,
+                  Symptopms = hs,
+                  Diseased = d,
+                  Tot.Symp = s,
+                  Avail.screen = a,
+                  Untreated = u,
+                  Screen.Tot = ns,
+                  Screen.Sym = as,
+                  Screen.Dis = ad,
+                  Test.Pos.Sym = tps,
+                  Test.Pos.Dis = tpd,
+                  Test.Pos.Total = tpt,
+                  Avail.TRT.Dis = NDAT,
+                  TRT.A.Dis = NDTA, 
+                  TRT.B.Dis = NDTB, 
+                  TRT.A.Cure = DCA, 
+                  TRT.B.Cure = DCB,
+                  Avail.TRT.Tot = NAT,
+                  TRT.A.Tot = NTA,
+                  TRT.B.Tot = NTB,
+                  Sum.Dis.Cured = SDC,
+                  Cured = c,
+                  Catch.Dis = New)
+  
+  # Predict S, I, R compartments by day
+  while(d > 0){
+    # if number of days is specified, calculate up until that day
+    if(day != -1 & curr.day > day)
+       break()
+
+    # Update current day and c, u, d
+    curr.day = curr.day + 1
+    c = c + SDC
+    u = d - SDC
+    d = d + New - SDC
+    
+    # Calculate other variables
+    h = N - d - c
+    hs = round(g * h)
+    s = hs + d
+    a = s - u
+    ns = round(PS * a)
+    ad = round(PS * (d - u))
+    as = ns - ad
+    tps = rbinom(1, as, 1-tn)
+    tpd = rbinom(1, ad, tp)
+    tpt = tps + tpd
+    NDAT = tpd + u
+    NDTA = round(PTA * NDAT)
+    NDTB = min(NDAT - NDTA, round(PTB * NDAT))
+    DCA = min(NDTA, round(NDTA * Aeff))
+    DCB = min(NDTB, round(NDTB * Beff))
+    if (curr.day == 2){
+      NAT = tpt + tpt1
+    }
+    else{
+      NAT = tpt + u
+    }
+    NTA = round(PTA * NAT)
+    NTB = NAT - NTA
+    SDC = DCA + DCB
+    New = min(N - c - d, round(r * hs * d))
+    
+    data = c(curr.day, h, hs, d, s, a, u,
+             ns, as, ad, tps, tpd, tpt,
+             NDAT, NDTA, NDTA, DCA, DCB, NAT, NTA, NTB,
+             SDC, c, New)
+    df = rbind(df, data)
+  }
+  return(df)
+}
+```
+
+### Test Random Model
+
+$N = 300, r = 0.01, g = 0.2, d_1 = 5, c_1 = 0, u_1 = 0$
+
+$PS = 1, tp = 0.99, tn = 0.95, PTA = 1, PTB = 0, A_{eff} = 0.75, B_{eff} = 0.25$
+
+```{r test2}
+df = complex.model.rand()
+df
+model.plot(df)
+```
