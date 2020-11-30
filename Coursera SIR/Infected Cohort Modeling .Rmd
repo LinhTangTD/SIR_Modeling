@@ -1,0 +1,153 @@
+---
+title: "SIR Modeling: Infected Cohort"
+author: "Britney He"
+date: "11/29/2020"
+output: html_document
+---
+This task is to find out how long it takes for a cohort of infected people to recover. 
+To answer this question, we need to keep track of 2 populations: 
+those that are infected (compartment $I$), and those that have recovered (compartment $R$). 
+Infected people recover at a rate $\gamma$ (*gamma*). The differential equations describing this are:
+
+\begin{align}
+\frac{dI}{dt} & = -\gamma I \\
+\frac{dR}{dt} & = \gamma I
+\end{align}
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(deSolve)   # package to solve the model
+library(reshape2)  # package to change the shape of the model output
+library(ggplot2)   
+```
+
+## Initial condition:
+We are looking at a cohort of $10^6$ currently infected people, and no one has recovered so far. The average duration of infection is 10 days.
+Q: how many people will recover from the infection over a 4-week period?
+
+```{r}
+initial_number_infected = 1000000         # initial infected population size
+initial_number_recovered = 0              # initial number of people in the recovered state
+recovery_rate = 0.1                       # rate of recovery gamma in units of days^-1
+follow_up_duration = 28                   # duration to run the model for in units of days
+
+# Combine into the model input vectors:
+initial_state_values <- c(I = initial_number_infected, 
+                          R = initial_number_recovered)  
+parameters <- c(gamma = recovery_rate)  
+times <- seq(from = 0, to = follow_up_duration, by = 1) 
+```
+
+## Specifying the model function:
+```{r}
+cohort_model = function(time, state, parameters) {   
+    with(as.list(c(state, parameters)), {  
+      dI <- -gamma * I
+      dR <- gamma * I
+    return(list(c(dI, dR)))                           
+    })
+}
+```
+
+## Further explanations:
+When using deSolve, every model function takes as input arguments
+1) time: the timesteps that we want to solve the model at
+2) state: storing the number of people in each compartment at each timestep
+3) parameters: names and values of model parameters, e.g. the rates of transition between compartments
+
+with(as.list(c(state, parameters)), {...} tells R to look within the objects containing our state variables and parameters (by combining and converting them to a list object), so that you can refer to them directly. 
+In other words, we can unpack the state variables specified in "state" and the model parameters specified in "parameters" using the with() command, for our convenience.
+
+## Solving the model equations:
+```{r}
+output = as.data.frame(ode(y = initial_state_values, 
+                            times = times, 
+                            func = cohort_model,
+                            parms = parameters))
+# ode = ordinary differential equations
+output
+```
+
+## Q: Based on the output, how many people have recovered after 4 weeks?
+```{r}
+output[output$time == 28, c("time","R")]  
+```
+
+
+## Q: What proportion of the total population does this correspond to?
+```{r}
+output[output$time == 28,"R"]/(output[output$time == 28,"I"] + output[output$time == 28,"R"])
+```
+
+## Q: Plotting the output
+```{r}
+# turn output dataset into a long format, so that the number in each compartment at each timestep are all in the same column
+output_long <- melt(as.data.frame(output), id = "time")                  
+
+# Plot the number of people in each compartment over time
+ggplot(data = output_long,          
+       aes(x = time, y = value, colour = variable, group = variable)) +  
+  geom_line() + xlab("Time (days)") + ylab("Number of people") +                    
+  labs(title = paste("Number infected and recovered over time when gamma =",
+               parameters["gamma"],"days^-1")) 
+```
+
+
+## Q: Based on the plot, at what timepoint were infected and recovered individuals equal in number?
+```{r}
+# Answer: around 7 days - this where the I and R lines intersect.
+
+# the number in the I and R compartment are very similar at timestep 7.
+output[output$time == 7,]
+```
+
+
+Varying $\gamma$: 
+
+Average duration of infection = 2 days so the recovery rate = 1/2 = 0.5 $days^−1$
+
+```{r}
+parameters <- c(gamma = 0.5)
+
+# Solving the model
+output <- as.data.frame(ode(y = initial_state_values, 
+                            times = times, 
+                            func = cohort_model,
+                            parms = parameters))
+
+# Turn output dataset into long format
+output_long <- melt(as.data.frame(output), id = "time")   
+
+# Plotting the output
+ggplot(data = output_long,       
+       aes(x = time, y = value, color = variable, group = variable)) +  
+  geom_line() + xlab("Time (days)") + ylab("Number of people") +
+  labs(title = paste("Number infected and recovered over time when gamma =",
+                      parameters["gamma"],"days^−1")) + 
+  scale_color_brewer(palette = "Set1")
+```
+
+Average duration of infection = 20 days so the recovery rate = 1/20 = 0.05 $days^−1$
+```{r}
+parameters <- c(gamma = 0.05)
+
+# Solving the model
+output <- as.data.frame(ode(y = initial_state_values, 
+                            times = times, 
+                            func = cohort_model,
+                            parms = parameters))
+
+# Plotting the output
+output_long <- melt(as.data.frame(output), id = "time") 
+
+ggplot(data = output_long,                                 
+       aes(x = time, 
+           y = value, 
+           colour = variable, 
+           group = variable)) +  geom_line() + xlab("Time (days)") + ylab("Number of people") +    
+  labs(title = paste("Number infected and recovered over time when gamma =",
+                    parameters["gamma"],"days^-1")) 
+```
+
+## Q: What changes do you observe in the transition to the recovered compartment if `gamma` is higher or lower?
+Answer: if the rate is higher ($\gamma$ = 0.5), we can see that infected people recover more quickly: it takes less than 2 days for half of the infected cohort to recover, and by around 8 days, nearly everyone has recovered. A lower rate ($\gamma$ = 0.05) on the other hand corresponds to a slower transition: it takes around 14 days for half of infected people to move into the R compartment, and by the end of our 4 week follow-up around a quarter of people still have not recovered.

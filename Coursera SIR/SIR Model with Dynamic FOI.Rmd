@@ -1,0 +1,70 @@
+---
+title: "SIR Model with Dynamic Force of Infection"
+author: "Britney He"
+date: "11/29/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(deSolve)
+library(reshape2)
+library(ggplot2)
+```
+
+The differential equations for this model look like this:
+dS/dt = $-\beta S I/N$
+dI/dt = $\beta$ $I/N$ $S$ $-\gamma I$
+dR/dt = $\gamma I$
+
+## Assumptions:
+
+1) a homogeneous population - everyone in the same compartment is subject to the same hazards
+2) a well-mixed population - all susceptible people have the same risk as getting infected, dependent on the number of infected people
+3) a closed population - there are no births or deaths, so the population size stays constant
+
+```{r}
+# MODEL INPUTS:
+# at timestep 0
+initial_state_values = c(S = 999999, I = 1, R = 0) 
+
+parameters = c(beta = 1,      # the infection rate
+              gamma = 0.1)    # the rate of recovery
+
+# TIMESTEPS:
+times = seq(from = 0, to = 60, by = 1)   
+
+# SIR MODEL FUNCTION: 
+sir_model = function(time, state, parameters) {  
+    with(as.list(c(state, parameters)), {  
+      N = S+I+R 
+      lambda = beta * I/N
+      dS = -lambda * S             
+      dI = lambda * S - gamma * I    
+      dR = gamma * I                
+    return(list(c(dS, dI, dR))) 
+    })
+}
+
+# MODEL OUTPUT (solving the differential equations):
+output = as.data.frame(ode(y = initial_state_values, 
+                            times = times, 
+                            func = sir_model,
+                            parms = parameters))
+```
+
+## Plot
+```{r}
+output_long = melt(as.data.frame(output), id = "time")              
+
+ggplot(data = output_long, aes(x = time, y = value, colour = variable, group = variable)) + 
+  geom_line() +  xlab("Time (days)") + ylab("Number of people") + labs(colour = "Compartment")                    
+```
+
+
+Q: How does the pattern of the epidemic change under different assumptions for $\beta$ and $\gamma$, e.g. in terms of the peak of the epidemic, the number infected at the peak, and when the epidemic ends?
+
+A: With $\gamma$ held constant at 0.1, an increasing value for $\beta$ leads to an earlier and higher peak of infected people. With a higher $\beta$, the peak is also "sharper", i.e. the epidemic also starts to decline again more quickly. A $\beta$ of 0.1 actually does not give rise to an epidemic: the number of susceptible, infected and recovered people stays the same as at the beginning.
+
+A: Different recovery rates affect the epidemic just as much as different forces of infection. With $\beta$ held constant at 1, an increasing value for $\gamma$ tends to lead to a later and lower peak of infected people, and an earlier rise in the recovered curve. If people can stay infected for a long time before recovering ($\gamma$ = 0.025, corresponding to an average duration of infection of 40 days), the number of infected people stays high over a longer period and declines slowly - the epidemic flattens out. In contrast, if recovery happens very quickly after infection ($\gamma$ = 0.5), there is a only small peak in the prevalence of infection and the epidemic dies out quickly. If $\gamma$ is as large as 1, no epidemic takes place after the introduction of 1 infected case.
+
