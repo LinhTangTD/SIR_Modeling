@@ -1,7 +1,9 @@
 ---
 title: "Complex SIR model with Variability"
 author: "Linh, Britney, Bowen"
-output: html_notebook
+output: 
+  html_notebook:
+    code_folding: hide
 ---
 
 ```{r setup, include=FALSE}
@@ -20,7 +22,7 @@ library(ggplot2)
 
 * Population $(N = 300)$
 
-* Transmission/Infection Rate $(r = 0.01)$
+* Transmission/Infection Rate $(r = 0.02)$
 
 * Percentage of healthy individuals with symptoms $(g = 0.2)$
 
@@ -42,7 +44,7 @@ library(ggplot2)
 
 * Number of days since first case $(day = 38)$
 
-*Model upgrade with randomness - Additional Variables*
+**Model upgrade with randomness - Additional Variables**
 
 * Initial number of known cases (untreated) day1 $(u_1 = 0)$
 
@@ -55,7 +57,7 @@ library(ggplot2)
 * Testing cost $(Test.cost = 1)$
 
 ```{r model.rand}
-complex.model.rand = function(N=300, r=0.01, g=0.2, d1=5, c1=0, u1=0, PS=1, tp=0.99, tn=0.95, PTA=1, PTB=0, A.eff=0.75, B.eff=0.25, day = -1, A.cost = 20, B.cost = 15, Test.cost = 1){
+complex.model.rand = function(N=300, r=0.02, g=0.2, d1=5, c1=0, u1=0, PS=1, tp=0.99, tn=0.95, PTA=1, PTB=0, A.eff=0.75, B.eff=0.25, day = -1, A.cost = 20, B.cost = 15, Test.cost = 1){
   
   # Initial conditions
   curr.day = 1
@@ -158,10 +160,52 @@ complex.model.rand = function(N=300, r=0.01, g=0.2, d1=5, c1=0, u1=0, PS=1, tp=0
   df$Cost = df$TRT.A.Tot * A.cost + df$TRT.B.Tot * B.cost + df$Screen.Tot * Test.cost
   return(df)
 }
+
+model.plot = function(model){
+  cost = sum(model$Cost)
+  sick = sum(model$Diseased)
+  peak = max(model$Diseased)
+  ggplot(data  = model, aes(x = Day)) +
+    geom_line(aes(y = Healthy, color = "Healthy")) +
+    geom_line(aes(y = Diseased, color = "Diseased")) +
+    geom_line(aes(y = Cured, color = "Cured")) +
+    scale_color_discrete(name = "Compartment") +
+    labs(y = "Population", title = paste("Complex SIR Model: infected = " , sick, ", peak = ", peak, ", cost = $", cost, sep = "")) +
+    theme_minimal()
+}
+
 ```
 
-```{r test2}
-df = complex.model.rand(day = 38)
+```{r}
+df = complex.model.rand()
 df
 model.plot(df)
+```
+
+### Checking variability by running 100 replications of the model
+
+```{r plot_func}
+line.plot = function(model){
+  list(geom_point(data = model, aes(x = Day, y = Healthy, color = "Healthy"), size = 0.8),
+       geom_point(data = model, aes(x = Day, y = Diseased, color = "Diseased"), size = 0.8),
+       geom_point(data = model, aes(x = Day, y = Cured, color = "Cured"), size = 0.8),
+       geom_line(data = model, aes(x = Day, y = Healthy, color = "Healthy"), size = 0.1),
+       geom_line(data = model, aes(x = Day, y = Diseased, color = "Diseased"), size = 0.1),
+       geom_line(data = model, aes(x = Day, y = Cured, color = "Cured"), size = 0.1))
+}
+
+model.rep.plot = function(reps){
+  plot = ggplot() + labs(y = "Population", title = paste("Complex SIR Model with", reps, "reps")) + theme_minimal()
+  for(i in 1:reps){
+    df = complex.model.rand()
+    plot = plot + line.plot(df)
+  }
+  plot = plot + scale_color_discrete(name = "Compartment")
+  plot
+  return(plot)
+}
+```
+
+```{r}
+model.rep.plot(100)
 ```
