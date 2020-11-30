@@ -61,9 +61,6 @@ ui <- fluidPage(
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
-  
-
-  
   basic.model = function(n = 500, beta = 0.01, gamma = 0.7, S.rate = 0.2, I = 5, day = -1){
     
     # Calculate day 0 statistics
