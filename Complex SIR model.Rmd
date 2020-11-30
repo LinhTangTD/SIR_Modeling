@@ -1,7 +1,9 @@
 ---
 title: "Complex SIR model"
 author: "Linh, Britney, Bowen"
-output: html_notebook
+output: 
+  html_notebook:
+    code_folding: hide
 ---
 
 ```{r setup, include=FALSE}
@@ -118,18 +120,19 @@ complex.model.norand = function(N=800, r=0.01, g=0.1, d1=40, c1=0, PTA=0.5, PTB=
 ```{r plot_func}
 model.plot = function(model){
   cost = sum(model$Cost)
-  sick = max(model$Cured)
+  sick = sum(model$Diseased)
+  peak = max(model$Diseased)
   ggplot(data  = model, aes(x = Day)) +
     geom_line(aes(y = Healthy, color = "Healthy")) +
     geom_line(aes(y = Diseased, color = "Diseased")) +
     geom_line(aes(y = Cured, color = "Cured")) +
     scale_color_discrete(name = "Compartment") +
-    labs(y = "Population", title = paste("Complex SIR Model: sick = ", sick, ", total cost = $", cost, sep = "")) +
+    labs(y = "Population", title = paste("Complex SIR Model: infected = " , sick, ", peak = ", peak, ", cost = $", cost, sep = "")) +
     theme_minimal()
 }
 ```
 
-### Test No-Random Model for 38 days
+### Test Non-Random Model for 38 days
 
 ```{r test1}
 df = complex.model.norand(day = 38)
