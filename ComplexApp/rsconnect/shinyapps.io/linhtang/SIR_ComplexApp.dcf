@@ -1,0 +1,12 @@
+name: SIR_ComplexApp
+title: SIR_ComplexApp
+username:
+account: linhtang
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 3336324
+bundleId: 3931249
+url: https://linhtang.shinyapps.io/SIR_ComplexApp/
+when: 1606886997.49341
+asMultiple: FALSE
+asStatic: FALSE
