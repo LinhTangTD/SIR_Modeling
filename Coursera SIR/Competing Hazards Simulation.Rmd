@@ -1,0 +1,72 @@
+---
+title: "Competing Hazards Simulation"
+author: "Britney He"
+date: "11/29/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(deSolve)
+library(reshape2)
+library(ggplot2)
+```
+
+## 
+The model we want to specify in this etivity has 3 compartments: I (infected), R (recovered) and M (dead). 
+Infected people can recover at a rate $\gamma$, and die (transition to the M compartment) at a rate $\mu$ .
+
+The differential equations for this model look like this:
+dI/dt = $-\gamma I - \mu I$
+dR/dt = $\gamma I$
+dM/dt = $\mu I$
+
+## The model function:
+
+```{r}
+cohort_model - function(time, state, parameters) {  
+    with(as.list(c(state, parameters)), {  
+    # The differential equations
+      dI = -gamma * I - mu * I  
+      dR = gamma * I           
+      dM = mu * I               
+    return(list(c(dI, dR, dM))) 
+    })
+}
+```
+
+
+```{r}
+initial_state_values = c(I = 1000000,    # at the start, there are 10^6 infected people
+                          R = 0,         # no one has recovered
+                          M = 0)         # no one has died 
+parameters = c(gamma = 0.1, mu = 0.2)          
+times = seq(from = 0, to = 4*7, by = 1) # model the course of the infection over 4 weeks = 4*7 days
+```
+
+## Q: After 4 weeks, do you expect more people to have recovered or more people to have died, and why?
+We expect more people to die than to recover because the mortality rate (0.2) is higher than the recovery rate (0.1), so people move more quickly from I  to M than from I to R.
+
+
+```{r}
+# Solving differential equations:
+output = as.data.frame(ode(y = initial_state_values, 
+                            times = times, 
+                            func = cohort_model,
+                            parms = parameters))
+output_long = melt(as.data.frame(output), id = "time")     
+
+# Plot
+ggplot(data = output_long,   
+       aes(x = time, y = value, colour = variable, group = variable)) + geom_line() + xlab("Time (days)") + ylab("Number of people") +labs(colour = "Compartment") 
+```
+
+
+## Q: Based on the model output, what proportion of the initially infected cohort died before recovering over the 4 week period?
+
+```{r}
+output
+output[output$time == 28,]
+# Divide the number of people who died over the 4 week period by the number of people initially infected:
+output[29,"M"]/1000000
+```

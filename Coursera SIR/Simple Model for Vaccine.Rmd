@@ -1,0 +1,112 @@
+---
+title: "Simple Model for Vaccination"
+author: "Britney He"
+date: "11/30/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(deSolve)
+library(reshape2)
+library(ggplot2)
+```
+
+Modeling a disease where $\beta$  = 0.4 $days^{−1}$ , $\gamma$  = 0.1 $days^{−1}$ 
+
+## Vaccine coverage (p) = 0.5
+
+```{r}
+# MODEL INPUTS:
+
+# Vaccine coverage
+p = 0.5
+
+# Total population size
+N = 10^6
+
+# Vector storing the initial number of people in each compartment (at timestep 0)
+initial_state_values = c(S = (1-p)*(N-1),   # a proportion 1-p of the total population is susceptible
+                         I = 1,             # the epidemic starts with a single infected person
+                         R = p*(N-1))       # a proportion p of the total population is vaccinated/immune
+
+# Vector storing the parameters describing the transition rates in units of days^-1
+parameters = c(beta = 0.4,      # the infection rate, which acts on susceptibles
+              gamma = 0.1)      # the rate of recovery, which acts on those infected
+
+# TIMESTEPS:
+
+# Vector storing the sequence of timesteps to solve the model at
+times = seq(from = 0, to = 730, by = 1)   # from 0 to 730 days in daily intervals (2 years)
+
+# SIR MODEL FUNCTION: 
+
+# The model function takes as input arguments (in the following order): time, state and parameters
+sir_model = function(time, state, parameters) {  
+    with(as.list(c(state, parameters)), { 
+    # Calculating the total population size N (the sum of the number of people in each compartment)
+      N = S+I+R
+    # Defining lambda as a function of beta and I:
+      lambda = beta * I/N
+    # The differential equations
+      dS = -lambda * S          
+      dI = lambda * S - gamma * I  
+      dR = gamma * I                
+    return(list(c(dS, dI, dR))) 
+    })
+}
+
+# MODEL OUTPUT (solving the differential equations):
+
+output = as.data.frame(ode(y = initial_state_values, 
+                            times = times, 
+                            func = sir_model,
+                            parms = parameters))
+
+output_long = melt(as.data.frame(output), id = "time")                  
+
+# Adding a column for the prevalence proportion to the long-format output
+output_long$prevalence = output_long$value/sum(initial_state_values)
+
+# Plot the prevalence proportion
+ggplot(data = output_long,                                              
+       aes(x = time, y = prevalence, colour = variable, group = variable)) +  geom_line() +                                     xlab("Time (days)") + ylab("Prevalence (proportion)") + 
+  labs(colour = "Compartment",            
+        title = "Prevalence of infection, susceptibility and recovery over time")   
+```
+
+## Increasing the vaccine coverage to 75%
+
+
+```{r}
+# MODEL INPUTS:
+
+# Vaccine coverage
+p = 0.75
+
+# Total population size
+N = 10^6
+
+# Vector storing the initial number of people in each compartment (at timestep 0)
+initial_state_values = c(S = (1-p)*(N-1),   # a proportion 1-p of the total population is susceptible
+                         I = 1,             # the epidemic starts with a single infected person
+                         R = p*(N-1))       # a proportion p of the total population is vaccinated/immune
+
+# MODEL OUTPUT (solving the differential equations):
+
+output = as.data.frame(ode(y = initial_state_values, 
+                            times = times, 
+                            func = sir_model,
+                            parms = parameters))
+
+output_long = melt(as.data.frame(output), id = "time")                  
+
+# Adding a column for the prevalence proportion to the long-format output
+output_long$prevalence = output_long$value/sum(initial_state_values)
+
+# Plot the prevalence proportion
+ggplot(data = output_long,                                              
+       aes(x = time, y = prevalence, colour = variable, group = variable)) +  geom_line() +                                     xlab("Time (days)") + ylab("Prevalence (proportion)") + 
+  labs(colour = "Compartment",          
+       title = "Prevalence of infection, susceptibility and recovery over time")   
+```
