@@ -2,6 +2,7 @@ library(shiny)
 library(dplyr)
 library(ggplot2)
 library(shinyjs)
+library(plotly) 
 
 basic.model = function(n, beta, gamma, S.rate, I, day, var){
     # Calculate day 0 statistics
@@ -150,34 +151,54 @@ complex.model = function(N, r, g, day, d1, c1, u1, PS, tp, tn, Test.cost, PTA, A
     return(df)
 }
 
-model.plot = function(model){
-    ggplot(data  = model, aes(x = Day)) +
-        geom_line(aes(y = Healthy, color = "Healthy")) +
-        geom_line(aes(y = Infected, color = "Infected")) +
-        geom_line(aes(y = Recovered, color = "Recovered")) +
-        scale_color_discrete(name = "Compartment") +
-        labs(y = "Population", title = "SIR Model") + 
-        theme_minimal()
+model.plotly = function(model){
+  accumulate_by <- function(dat, var) {
+    var <- lazyeval::f_eval(var, dat)
+    lvls <- plotly:::getLevels(var)
+    dats <- lapply(seq_along(lvls), function(x) {
+      cbind(dat[var %in% lvls[seq(1, x)], ], frame = lvls[[x]])
+    })
+    dplyr::bind_rows(dats)
+  }
+  visual_data = select(model, c(Day, Healthy, Infected, Recovered)) %>%
+    tidyr::gather(key = Compartment, value = Population, Healthy, Infected, Recovered) %>% 
+    accumulate_by(~Day)
+  fig = plot_ly(data = visual_data, type = "scatter", mode = "lines",
+                x = ~Day, y = ~Population, color = ~Compartment, frame = ~frame) %>% 
+          layout(hovermode = 'compare') %>%
+          animation_opts(frame = 100, transition = 0, redraw = FALSE) %>%
+          animation_slider(hide = T) %>%
+          animation_button(x = 1, xanchor = "right", y = -0.1, yanchor = "bottom", label = "View Plot")
+  return(fig)
 }
 
-line.plot = function(model){
+model.plot = function(model){
+  ggplot(data  = model, aes(x = Day)) +
+    geom_line(aes(y = Healthy, color = "Healthy")) +
+    geom_line(aes(y = Infected, color = "Infected")) +
+    geom_line(aes(y = Recovered, color = "Recovered")) +
+    scale_color_discrete(name = "Compartment") +
+    labs(y = "Population", title = "SIR Model") + 
+    theme_minimal()
+}
+
+model.rep.plot = function(reps){
+  line.plot = function(model){
     list(geom_point(data = model, aes(x = Day, y = Healthy, color = "Healthy"), size = 0.8),
          geom_point(data = model, aes(x = Day, y = Diseased, color = "Diseased"), size = 0.8),
          geom_point(data = model, aes(x = Day, y = Cured, color = "Cured"), size = 0.8),
          geom_line(data = model, aes(x = Day, y = Healthy, color = "Healthy"), size = 0.1),
          geom_line(data = model, aes(x = Day, y = Diseased, color = "Diseased"), size = 0.1),
          geom_line(data = model, aes(x = Day, y = Cured, color = "Cured"), size = 0.1))
-}
-
-model.rep.plot = function(reps){
-    plot = ggplot() + labs(y = "Population", title = paste("Complex SIR Model with", reps, "reps")) + theme_minimal()
-    for(i in 1:reps){
-        df = complex.model.rand()
-        plot = plot + line.plot(df)
-    }
-    plot = plot + scale_color_discrete(name = "Compartment")
-    plot
-    return(plot)
+  }
+  plot = ggplot() + labs(y = "Population", title = paste("Complex SIR Model with", reps, "reps")) + theme_minimal()
+  for(i in 1:reps){
+      df = complex.model.rand()
+      plot = plot + line.plot(df)
+  }
+  plot = plot + scale_color_discrete(name = "Compartment")
+  plot
+  return(plot)
 }
 
 ui <- fluidPage(
@@ -321,8 +342,8 @@ ui <- fluidPage(
             tabsetPanel(
                 tabPanel("Plot", 
                          plotOutput("Plot"),
+                         # plotlyOutput("Plot1", width = "100%", height= "100%"),
                          htmlOutput("model_info")),
-                
                 tabPanel("Data",
                          checkboxInput("FullTable", "See Full Table", TRUE),
                          dataTableOutput("df")), 
@@ -403,6 +424,7 @@ server <- function(input, output, session) {
         })
         
         plot = model.plot(df)
+        # output$Plot1 = renderPlotly({model.plotly(df)})
         return(plot)
     })
     

@@ -5,8 +5,8 @@ account: linhtang
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 3336324
-bundleId: 3933309
+bundleId: 3933750
 url: https://linhtang.shinyapps.io/SIR_ComplexApp/
-when: 1606922127.35189
+when: 1606926853.73354
 asMultiple: FALSE
 asStatic: FALSE
