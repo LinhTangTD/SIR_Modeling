@@ -19,9 +19,9 @@ ui <- fluidPage(
                   value = 500),
       checkboxInput("WatchTilEnd", "Watch Disease till end", TRUE),
       sliderInput("Days",
-                   "Number of Days you want to see watch the disease",
+                   "Number of days",
                    min = 1,
-                   max = 200,
+                   max = 500,
                    step = 1, 
                    value = 10),
       sliderInput("Initialinf",
@@ -53,10 +53,57 @@ ui <- fluidPage(
     
     # Show a plot of the generated distribution
     mainPanel(
-      plotOutput("distPlot")
+      plotOutput("distPlot"),
+      htmlOutput("model_info")
     )
   )
 )
+
+basic.model = function(n, beta, gamma, S.rate, I, day, var){
+  # Calculate day 0 statistics
+  curr.day = 0
+  healthy = n - I
+  susceptible = round(S.rate * healthy)
+  infected = I
+  infected.next = round(I * beta * susceptible)
+  treat = round(gamma * I)
+  recovered = 0
+  
+  # Table storing S, I, R compartments over time
+  df = data_frame(Day = curr.day, Healthy = healthy, Susceptible = susceptible, Infected = infected, Recovered = recovered)
+  
+  # Predict S, I, R compartments by day
+  while(infected*healthy > 0 | curr.day < 1000){
+    # if number of days is specified, calculate up until that day
+    if(day != -1 & curr.day >= day)
+      break()
+    curr.day = curr.day + 1
+    healthy = healthy - infected.next
+    susceptible = round(S.rate * healthy)
+    infected = infected + infected.next - treat
+    if(var){
+      infected.next = rbinom(1, infected*susceptible, beta)
+      treat = rbinom(1, infected, gamma)
+    } else {
+      infected.next = round(infected * beta * susceptible)
+      treat = round(gamma * infected)
+    }
+    recovered = recovered + treat
+    data = c(curr.day, healthy, susceptible, infected, recovered)
+    df = rbind(df, data)
+  }
+  return(df)
+}
+
+model.plot = function(model){
+  ggplot(data  = model, aes(x = Day)) +
+    geom_line(aes(y = Healthy, color = "Healthy")) +
+    geom_line(aes(y = Infected, color = "Infected")) +
+    geom_line(aes(y = Recovered, color = "Recovered")) +
+    scale_color_discrete(name = "Compartment") +
+    labs(y = "Population", title = "Basic SIR Model") + 
+    theme_minimal()
+}
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
@@ -70,52 +117,6 @@ server <- function(input, output) {
       disable("Days")
     }
   })
-  
-  basic.model = function(n, beta, gamma, S.rate, I, day, var){
-    # Calculate day 0 statistics
-    curr.day = 0
-    healthy = n - I
-    susceptible = round(S.rate * healthy)
-    infected = I
-    infected.next = round(I * beta * susceptible)
-    treat = round(gamma * I)
-    recovered = 0
-    
-    # Table storing S, I, R compartments over time
-    df = data_frame(Day = curr.day, Healthy = healthy, Susceptible = susceptible, Infected = infected, Recovered = recovered)
-    
-    # Predict S, I, R compartments by day
-    while(infected*healthy > 0){
-      # if number of days is specified, calculate up until that day
-      if(day != -1 & curr.day >= day)
-        break()
-      curr.day = curr.day + 1
-      healthy = healthy - infected.next
-      susceptible = round(S.rate * healthy)
-      infected = infected + infected.next - treat
-      if(var){
-        infected.next = rbinom(1, infected*susceptible, beta)
-        treat = rbinom(1, infected, gamma)
-      } else {
-        infected.next = round(infected * beta * susceptible)
-        treat = round(gamma * infected)
-      }
-      recovered = recovered + treat
-      data = c(curr.day, healthy, susceptible, infected, recovered)
-      df = rbind(df, data)
-    }
-    return(df)
-  }
-  
-  model.plot = function(model){
-    ggplot(data  = model, aes(x = Day)) +
-      geom_line(aes(y = Healthy, color = "Healthy")) +
-      geom_line(aes(y = Infected, color = "Infected")) +
-      geom_line(aes(y = Recovered, color = "Recovered")) +
-      scale_color_discrete(name = "Compartment") +
-      labs(y = "Population", title = "Basic SIR Model") + 
-      theme_minimal()
-  }
 
   output$distPlot <- renderPlot({
     validate(
@@ -133,8 +134,21 @@ server <- function(input, output) {
                           I = input$Initialinf, 
                           day = day,
                           var = input$Var)
-    model.plot(df)
+    myplot = model.plot(df)
+  
+    peak_infected = max(df$Infected)
+    peak_day = df[df$Infected == peak_infected,]$Day
+    total_infected = sum(df$Infected)
+    
+    output$model_info = renderUI({
+      line1 = paste("The peak number of infected individuals is ", peak_infected, " at day ", peak_day, ".", sep = "")
+      line2 = paste("The total number of infected individuals is ", total_infected, ".", sep = "")
+      HTML(paste(line1, line2, sep = "<br/>"))
+    })
+    return(myplot)
  })
+  
+
 }
 
 # Run the application 
