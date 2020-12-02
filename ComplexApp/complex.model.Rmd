@@ -1,0 +1,85 @@
+---
+output:
+  html_document: default
+---
+## Complex SIR Model
+
+### Assumption
+
+* The recovered (R) compartment will no longer be susceptible
+
+### Parameters with notation:
+
+* Population $(P)$
+* Transmission/Infection Rate $(\beta)$
+* Percentage of healthy individuals with symptoms (i.e. susceptible)$(g)$
+* Initial number of infected individuals day1 $(I)$
+* Initial number of recovered individuals day1 $(R)$
+* Percentage of individuals receiving Treatment A $(PTA)$
+* Percentage of individuals receiving Treatment B $(PTB)$
+* Treatment A effectiveness $(\gamma_A)$
+* Treatment B effectiveness $(\gamma_B)$
+* Treatment A cost $(A_{cost})$
+* Treatment B cost $(B_{cost})$
+* Number of days since first case $(t)$
+
+**Model upgrade with randomness from additional Variables**
+
+* Initial number of known cases (untreated) day1 $(U)$
+* Percentage of individual being tested daily $(PS)$
+* Test sensitivity $(tp)$
+* Test specificity $(tn)$
+* Testing cost $(Test.cost)$
+
+### Model:
+
+\begin{align*}
+& R_{i+1} = R_{i} + CuredTot_{i} \\
+& U_{i+1} = I_{i} - CuredTot_{i} \\
+& I_{i+1} = I_{i} + N_{i} - CuredTot_{i} \\
+& H_{i+1} = N - I_{i+1} - R_{i+1} \\
+& S_{i+1} = g \cdot H_{i+1} \\ \\
+
+& TestTot_i{i+1} = PS \cdot (S_{i+1} + I_{i+1} - U_{i+1}) \\
+& TestD_{i+1} = PS \cdot (I_{i+1} - U_{i+1}) \\
+& TestS_{i+1} = TestTot_i{i+1} - TestD_{i+1} \\ \\
+& PosD_{i+1} = TestD_{i+1} \cdot tp \\
+& PosS_{i+1} = TestS_{i+1} \cdot (1-tn) \\
+& PosTot_{i+1} = PosS_{i+1} + PosD_{i+1} \\ \\
+
+& TrTot_{i+1} = PosTot_{i+1} + U{i+1}  \\
+& TrA_{i+1} = PTA \cdot TrTot_{i+1} \\
+& TrB_{i+1} = PTB \cdot TrTot_{i+1} \\ \\
+& TrtTotD_{i+1} = PosD_{i+1} + U_{i+1} \\
+& CuredA_{i+1} = PTA \cdot TrtTotD_{i+1} \cdot \gamma_A \\
+& CuredB_{i+1} = PTB \cdot TrtTotD_{i+1} \cdot \gamma_B \\
+& CuredTot_{i+1} = CuredA_{i+1} + CuredB_{i+1} \\
+& N_{i+1} = \beta \cdot S_{i+1} \cdot I_{i+1}
+\end{align*}
+
+Where:
+
+* $R_i$ is the number of individuals who got infected and recovered on day $i$
+* $U_i$ is the number of individuals who got infected and hasn't received any treatment on day $i$
+* $I_i$ is the number of infected individuals on day $i$
+* $H_i$ is the number of healthy individuals on day $i$
+* $S_i$ is the number of healthy individuals who are susceptible to get infected on day $i$
+
+* $TestTot_i$ is the total number of individuals who got tested on day $i$
+* $TestD_i$ is the number of individuals who are hypothetically diseased and got tested on day $i$
+* $TestS_i$ is the number of individuals who are expressing symptoms and got tested on day $i$
+* $PosD_i$ is the number of individuals in $TestD$ that tested posititve on day $i$
+* $PosS_i$ is the number of individuals in $TestS$ that tested posititve on day $i$
+* $PosTot_i$ is the total number of individuals that tested positive on day $i$
+
+**CHECK**
+
+* $TrTot_i$ is the total number of individuals that received treatment/are available to treatment on day $i$
+* $TrA_i$ is the number of individuals that received treatment A on day $i$
+* $TrB_i$ is the number of individuals that received treatment B on day $i$
+
+* $TrtTotD_i$ is the total number of individuals who are hypothetically diseased and received treatment on day $i$
+* $CuredA_i$ is the number of individuals who are diseased, received treatment A and recovered on day $i$
+* $CuredB_i$ is the number of individuals who are diseased, received treatment B and recovered on day $i$
+* $CuredTot_i$ is the total number of individuals who are diseased, received either treatment and recovered on day $i$
+* $N_i$ is the number of individuals that are predicted to get infected on the next day of day $i$

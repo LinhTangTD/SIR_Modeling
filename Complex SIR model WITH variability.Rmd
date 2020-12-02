@@ -1,7 +1,7 @@
 ---
 title: "Complex SIR model with Variability"
 author: "Linh, Britney, Bowen"
-output: html_notebooks
+output: html_notebook
 ---
 
 ```{r setup, include=FALSE}
@@ -112,7 +112,7 @@ complex.model.rand = function(N=300, r=0.02, g=0.2, d1=5, c1=0, u1=0, PS=1, tp=0
                   Catch.Dis = New)
   
   # Predict S, I, R compartments by day
-  while(d*h > 0 | (day != -1 & curr.day < day)){
+  while(day == -1 & d > 0 | (day != -1 & curr.day < day)){
     # if number of days is specified, calculate up until that day
     # else calculate until there is no more diseased individual
     
@@ -205,5 +205,6 @@ model.rep.plot = function(reps){
 ```
 
 ```{r}
+model.rep.plot(10)
 model.rep.plot(100)
 ```

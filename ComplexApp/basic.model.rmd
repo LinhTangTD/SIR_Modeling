@@ -1,0 +1,43 @@
+---
+output:
+  html_document: default
+---
+## Basic SIR Model
+
+### Assumption
+
+* The recovered (R) compartment will no longer be susceptible
+* No treatment is given, disease ends due to herd immunity
+* Population is constant at all times
+* Homogeneous mixing between infected ans susceptible population
+* Recovering period is 1 day 
+
+### Model Parameters:
+
+* Population $(P)$
+* Transmission/Infection Rate $(\beta)$
+* Recovery Rate $(\gamma)$
+* Percentage of healthy individual that are susceptible $(g)$
+* Initial number of infected individual $(I)$
+* Number of days since first case $(t)$
+
+### Model:
+
+\begin{align}
+& H_{0} = P - I \\
+& H_{i+1} = H_{i} - {N}_i \\
+& S_{i+1} = g \cdot H_{i+1} \\
+& I_{i+1} = I_i + N_{i} - T_{i} \\
+& N_{i+1} = I_{i+1} \cdot S_{i+1} \cdot \beta \\
+& T_{i+1} = I_{i+1} \cdot \gamma \\
+& R_{i+1} = R_{i} + T_{i}
+\end{align}
+
+Where:
+
+* $H_i$ is the number of healthy individuals on day $i$
+* $S_i$ is the number of healthy individuals who are susceptible to get infected on day $i$
+* $I_i$ is the number of infected individuals on day $i$
+* $N_i$ is the number of individuals that are predicted to get infected on the next day of day $i$
+* $T_i$ is the number of individuals who got infected and are recovering on day $i$
+* $R_i$ is the number of individuals who got infected and recovered on day $i$

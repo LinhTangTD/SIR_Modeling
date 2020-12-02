@@ -3,6 +3,52 @@ library(dplyr)
 library(ggplot2)
 library(shinyjs)
 
+basic.model = function(n, beta, gamma, S.rate, I, day, var){
+  # Calculate day 0 statistics
+  curr.day = 0
+  healthy = n - I
+  susceptible = round(S.rate * healthy)
+  infected = I
+  infected.next = round(I * beta * susceptible)
+  treat = round(gamma * I)
+  recovered = 0
+  
+  # Table storing S, I, R compartments over time
+  df = data_frame(Day = curr.day, Healthy = healthy, Susceptible = susceptible, Infected = infected, Recovered = recovered)
+  
+  # Predict S, I, R compartments by day
+  while(infected*healthy > 0){
+    # if number of days is specified, calculate up until that day
+    if(day != -1 & curr.day >= day)
+      break()
+    curr.day = curr.day + 1
+    healthy = healthy - infected.next
+    susceptible = round(S.rate * healthy)
+    infected = infected + infected.next - treat
+    if(var){
+      infected.next = rbinom(1, infected*susceptible, beta)
+      treat = rbinom(1, infected, gamma)
+    } else {
+      infected.next = round(infected * beta * susceptible)
+      treat = round(gamma * infected)
+    }
+    recovered = recovered + treat
+    data = c(curr.day, healthy, susceptible, infected, recovered)
+    df = rbind(df, data)
+  }
+  return(df)
+}
+
+model.plot = function(model){
+  ggplot(data  = model, aes(x = Day)) +
+    geom_line(aes(y = Healthy, color = "Healthy")) +
+    geom_line(aes(y = Infected, color = "Infected")) +
+    geom_line(aes(y = Recovered, color = "Recovered")) +
+    scale_color_discrete(name = "Compartment") +
+    labs(y = "Population", title = "Basic SIR Model") + 
+    theme_minimal()
+}
+
 # Define UI for application that draws a histogram
 ui <- fluidPage(
   
@@ -53,10 +99,17 @@ ui <- fluidPage(
     
     # Show a plot of the generated distribution
     mainPanel(
-      plotOutput("distPlot")
+      tabsetPanel(
+        tabPanel("Plot", 
+                 plotOutput("Plot")),
+
+        tabPanel("Data",
+                 dataTableOutput("df")))
     )
   )
 )
+
+
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
@@ -70,54 +123,8 @@ server <- function(input, output) {
       disable("Days")
     }
   })
-  
-  basic.model = function(n, beta, gamma, S.rate, I, day, var){
-    # Calculate day 0 statistics
-    curr.day = 0
-    healthy = n - I
-    susceptible = round(S.rate * healthy)
-    infected = I
-    infected.next = round(I * beta * susceptible)
-    treat = round(gamma * I)
-    recovered = 0
-    
-    # Table storing S, I, R compartments over time
-    df = data_frame(Day = curr.day, Healthy = healthy, Susceptible = susceptible, Infected = infected, Recovered = recovered)
-    
-    # Predict S, I, R compartments by day
-    while(infected*healthy > 0){
-      # if number of days is specified, calculate up until that day
-      if(day != -1 & curr.day >= day)
-        break()
-      curr.day = curr.day + 1
-      healthy = healthy - infected.next
-      susceptible = round(S.rate * healthy)
-      infected = infected + infected.next - treat
-      if(var){
-        infected.next = rbinom(1, infected*susceptible, beta)
-        treat = rbinom(1, infected, gamma)
-      } else {
-        infected.next = round(infected * beta * susceptible)
-        treat = round(gamma * infected)
-      }
-      recovered = recovered + treat
-      data = c(curr.day, healthy, susceptible, infected, recovered)
-      df = rbind(df, data)
-    }
-    return(df)
-  }
-  
-  model.plot = function(model){
-    ggplot(data  = model, aes(x = Day)) +
-      geom_line(aes(y = Healthy, color = "Healthy")) +
-      geom_line(aes(y = Infected, color = "Infected")) +
-      geom_line(aes(y = Recovered, color = "Recovered")) +
-      scale_color_discrete(name = "Compartment") +
-      labs(y = "Population", title = "Basic SIR Model") + 
-      theme_minimal()
-  }
 
-  output$distPlot <- renderPlot({
+  output$Plot <- renderPlot({
     validate(
       need(input$Initialinf < input$Pop, "Initial infected number cannot be more than the population")
     )
@@ -127,13 +134,15 @@ server <- function(input, output) {
       day = input$Days
     }
     df = basic.model(n = input$Pop, 
-                          beta = input$Spread_Rate, 
-                          gamma = input$Treat_Rate, 
-                          S.rate = input$Susceptible_Rate, 
-                          I = input$Initialinf, 
-                          day = day,
-                          var = input$Var)
-    model.plot(df)
+                     beta = input$Spread_Rate, 
+                     gamma = input$Treat_Rate, 
+                     S.rate = input$Susceptible_Rate, 
+                     I = input$Initialinf, 
+                     day = day,
+                     var = input$Var)
+    plot = model.plot(df)
+    output$df = renderTable(df)
+    return(plot)
  })
 }
 
