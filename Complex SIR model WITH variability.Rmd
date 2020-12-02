@@ -1,7 +1,7 @@
 ---
 title: "Complex SIR model with Variability"
 author: "Linh, Britney, Bowen"
-output: html_notebook
+output: html_notebooks
 ---
 
 ```{r setup, include=FALSE}
