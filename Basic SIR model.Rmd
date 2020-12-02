@@ -31,7 +31,7 @@ library(ggplot2)
 * Number of days since first case $(day = 50)$
 
 ```{r model.func}
-basic.model = function(n = 500, beta = 0.01, gamma = 0.7, S.rate = 0.2, I = 5, day = -1){
+basic.model = function(n = 500, beta = 0.01, gamma = 0.7, S.rate = 0.2, I = 5, day = -1, var = FALSE){
   
   # Calculate day 0 statistics
   curr.day = 0
@@ -46,7 +46,7 @@ basic.model = function(n = 500, beta = 0.01, gamma = 0.7, S.rate = 0.2, I = 5, d
   df = data_frame(Day = curr.day, Healthy = healthy, Susceptible = susceptible, Infected = infected, Recovered = recovered)
   
   # Predict S, I, R compartments by day
-  while(infected > 1){
+  while(infected*healthy > 0){
     # if number of days is specified, calculate up until that day
     if(day != -1 & curr.day >= day)
        break()
@@ -54,8 +54,13 @@ basic.model = function(n = 500, beta = 0.01, gamma = 0.7, S.rate = 0.2, I = 5, d
     healthy = healthy - infected.next
     susceptible = round(S.rate * healthy)
     infected = infected + infected.next - treat
-    infected.next = round(infected * beta * susceptible)
-    treat = round(gamma * infected)
+    if(var){
+      infected.next = rbinom(1, infected*susceptible, beta)
+      treat = rbinom(1, infected, gamma)
+    } else {
+      infected.next = round(infected * beta * susceptible)
+      treat = round(gamma * infected)
+    }
     recovered = recovered + treat
     data = c(curr.day, healthy, susceptible, infected, recovered)
     # data = c(curr.day, healthy, susceptible, infected, infected.next, treat, recovered)
@@ -80,7 +85,11 @@ model.plot = function(model){
 ### 70% Recovery Rate
 
 ```{r 70model}
-df = basic.model()
+df = basic.model(var = FALSE)
+df
+model.plot(df)
+
+df = basic.model(var = TRUE)
 df
 model.plot(df)
 ```
