@@ -37,7 +37,7 @@ SIRHD.model = function(N, beta, I0, S.rate, H.rate, R.rate.h, R.rate.nh, T.h, T.
   NonHospital.Dead = 0
   Tot.Recovered = Hospital.Recovered + NonHospital.Recovered
   Tot.Dead = Hospital.Dead + NonHospital.Dead
-  Pop = S + NS + Tot.Infective + Tot.Dead
+  Pop = S + NS + Tot.Infected + Tot.Dead
   df = data_frame(Day = curr.day,
                   Susceptible = S,
                   Non.Susceptible = NS,
@@ -86,7 +86,7 @@ SIRHD.model = function(N, beta, I0, S.rate, H.rate, R.rate.h, R.rate.nh, T.h, T.
     Tot.Infective = NewInfected + Tot.NonHospital
     
     # Confirm population
-    Pop = S + NS + Tot.Infective + Tot.Dead
+    Pop = S + NS + Tot.Infected + Tot.Dead
     
     data = c(curr.day, S, NS, NewInfected, Tot.Hospital, Tot.NonHospital, Tot.Infected, Tot.Infective, Hospital.Recovered, Hospital.Dead, Tot.Recovered, Tot.Dead, Pop)
     df = rbind(df, data)
@@ -108,7 +108,7 @@ model.plot = function(model){
     labs(y = "Population", title = "SIR Model") + 
     theme_minimal()
 }
-model = SIRHD.model(10000, 2, 5, 0.5, 0.7, 0.9, 0.9, 10, 5)
+model = SIRHD.model(10000, 2, 5, 0.5, 0.8, 0.9, 0.9, 10, 5)
 # model.plot(model)
 ```
 
