@@ -1,13 +1,11 @@
 ---
 title: "Complex SIR model with Variability"
 author: "Linh, Britney, Bowen"
-output: 
-  html_notebook:
-    code_folding: hide
+output: html_notebook
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(warning = TRUE, message = TRUE)
 library(mosaic)
 library(ggplot2)
 ```
@@ -207,5 +205,24 @@ model.rep.plot = function(reps){
 ```
 
 ```{r}
+model.rep.plot(10)
 model.rep.plot(100)
 ```
+```{r}
+accumulate_by <- function(dat, var) {
+  var <- lazyeval::f_eval(var, dat)
+  lvls <- plotly:::getLevels(var)
+  dats <- lapply(seq_along(lvls), function(x) {
+    cbind(dat[var %in% lvls[seq(1, x)], ], frame = lvls[[x]])
+  })
+  dplyr::bind_rows(dats)
+}
+visual_data = select(df, c(Day, Healthy, Diseased, Cured)) %>% tidyr::gather(key = Compartment, value = Population, Healthy, Diseased, Cured) %>% accumulate_by(~Day)
+plot_ly(data = visual_data, type = "scatter", mode = "lines",
+        x = ~Day, y = ~Population, color = ~Compartment, frame = ~frame) %>% 
+  layout(hovermode = 'compare') %>%
+  animation_opts(frame = 100, transition = 0, redraw = FALSE, mode = "immediate") %>%
+  animation_slider(hide = T) %>%
+  animation_button(x = 1, xanchor = "right", y = -0.1, yanchor = "bottom", label = "View Plot")
+```
+
