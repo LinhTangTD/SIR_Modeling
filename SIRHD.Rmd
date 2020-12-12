@@ -12,83 +12,79 @@ library(ggplot2)
 ```
 
 ```{r}
-SIRHD.model = function(N, beta, I0, S.rate, H.rate, R.rate.h, R.rate.nh, T.h, T.nh){
+SIRHD.model = function(N, beta, I.0, p, epsilon, theta, gamma, psi, lambda){
   I.rate = beta/N
-  D.rate.h = 1 - R.rate.h
-  D.rate.nh = 1 - R.rate.nh
-  NH.rate = 1 - H.rate
-  HospitalOut.rate = 1/T.h
-  NonHospitalOut.rate = 1/T.nh
-  HospitalIn.rate = 1 - HospitalOut.rate
-  NonHospitalIn.rate = 1 - NonHospitalOut.rate
   
   curr.day = 0
-  S = S.rate * N - I0
-  NS_0 = N - S - I0
-  NS = NS_0
+  S = p * N - I.0
+  NS.0 = N - S - I.0
+  NS = NS.0
   NewInfected = I0
-  Tot.Hospital = 0
-  Tot.NonHospital = 0
-  Tot.Infected = NewInfected + Tot.Hospital + Tot.NonHospital
-  Tot.Infective = NewInfected + Tot.NonHospital
+  Total.Hospital = 0
+  Total.NonHospital = 0
+  Total.Infected = NewInfected + Total.Hospital + Total.NonHospital
+  Total.Infective = NewInfected + Total.NonHospital
   Hospital.Recovered = 0
   NonHospital.Recovered = 0
   Hospital.Dead = 0
   NonHospital.Dead = 0
-  Tot.Recovered = Hospital.Recovered + NonHospital.Recovered
-  Tot.Dead = Hospital.Dead + NonHospital.Dead
-  Pop = S + NS + Tot.Infected + Tot.Dead
+  Total.Recovered = Hospital.Recovered + NonHospital.Recovered
+  Total.Dead = Hospital.Dead + NonHospital.Dead
+  Pop = S + NS + Total.Infected + Total.Dead
+  
+  # If you want a full table like the excel, uncomment all lines in the df below
   df = data_frame(Day = curr.day,
                   Susceptible = S,
                   Non.Susceptible = NS,
                   Daily.New.Case = NewInfected,
-                  Total.In.Hospital = Tot.Hospital,
-                  Tot.NonHospital = Tot.NonHospital,
-                  Infected = Tot.Infected,
-                  Tot.Infective = Tot.Infective,
-                  Recovered.In.Hospital = Hospital.Recovered,
-                  Dead.In.Hospital = Hospital.Dead,
-                  Total.Recovered = Tot.Recovered,
-                  Total.Dead = Tot.Dead,
-                  Pop = Pop)
+                  Total.In.Hospital = Total.Hospital,
+                  # Total.NonHospital = Total.NonHospital,
+                  Infected = Total.Infected,
+                  # Total.Infective = Total.Infective,
+                  # Recovered.In.Hospital = Hospital.Recovered,
+                  # Dead.In.Hospital = Hospital.Dead,
+                  Total.Recovered = Total.Recovered,
+                  Total.Dead = Total.Dead)
   
   # Watch the disease until it ends or at max 200 days
   while(NewInfected * S > 0 & curr.day < 200){
     curr.day = curr.day + 1
     
     # Number of individuals recovered from the infected in hospital (previous day)
-    Hospital.Recovered = Hospital.Recovered + round(R.rate.h * round(Tot.Hospital * HospitalOut.rate))
-    Hospital.Dead = Hospital.Dead + round(D.rate.h * round(Tot.Hospital * HospitalOut.rate))
+    Hospital.Recovered = Hospital.Recovered + round(theta * round(Total.Hospital * psi))
+    Hospital.Dead = Hospital.Dead + round(Total.Hospital * psi) - round(theta * round(Total.Hospital * psi))
     
     # Number of individuals dead from the infected in hospital (previous day)
-    NonHospital.Recovered = NonHospital.Recovered + round(R.rate.nh * round(Tot.NonHospital * NonHospitalOut.rate))
-    NonHospital.Dead = NonHospital.Dead + round(D.rate.h * round(Tot.NonHospital * NonHospitalOut.rate))
+    NonHospital.Recovered = NonHospital.Recovered + round(gamma * round(Total.NonHospital * lambda))
+    NonHospital.Dead = NonHospital.Dead + round(Total.NonHospital * lambda) - round(gamma * round(Total.NonHospital * lambda))
     
     # Total number of recovered or dead so far (cumulative)
-    Tot.Recovered = Hospital.Recovered + NonHospital.Recovered
-    Tot.Dead = Hospital.Dead + NonHospital.Dead
+    Total.Recovered = Hospital.Recovered + NonHospital.Recovered
+    Total.Dead = Hospital.Dead + NonHospital.Dead
     
     # Number of individuals hospitalized from the infected in the previous day
-    Tot.Hospital = round(NewInfected * H.rate) + round(Tot.Hospital * HospitalIn.rate)
-    Tot.NonHospital = round(NewInfected * NH.rate) + round(Tot.NonHospital * NonHospitalIn.rate)
+    Total.Hospital = round(NewInfected * epsilon) + Total.Hospital - round(Total.Hospital * psi)
+    Total.NonHospital = NewInfected - round(NewInfected * epsilon) + Total.NonHospital - round(Total.NonHospital * lambda)
     
     # Newly infected case today and total actively infected so far
-    NewInfected = round(I.rate * S * Tot.Infective)
-    Tot.Infected = NewInfected + Tot.Hospital + Tot.NonHospital
+    NewInfected = round(I.rate * S * Total.Infective)
+    Total.Infected = NewInfected + Total.Hospital + Total.NonHospital
     
     # Susceptible population left
     S = S - NewInfected
     
     # Current non-susceptible group
-    NS = NS_0 + Tot.Recovered
+    NS = NS.0 + Total.Recovered
     
     # Infective group that can spread the disease the next day
-    Tot.Infective = NewInfected + Tot.NonHospital
+    Total.Infective = NewInfected + Total.NonHospital
     
     # Confirm population
-    Pop = S + NS + Tot.Infected + Tot.Dead
+    Pop = S + NS + Total.Infected + Total.Dead
     
-    data = c(curr.day, S, NS, NewInfected, Tot.Hospital, Tot.NonHospital, Tot.Infected, Tot.Infective, Hospital.Recovered, Hospital.Dead, Tot.Recovered, Tot.Dead, Pop)
+    # If you want a full table like the excel, uncomment this
+    # data = c(curr.day, S, NS, NewInfected, Total.Hospital, Total.NonHospital, Total.Infected, Total.Infective, Hospital.Recovered, Hospital.Dead, Total.Recovered, Total.Dead, Pop)
+    data = c(curr.day, S, NS, NewInfected, Total.Hospital, Total.Infected, Total.Recovered, Total.Dead)
     df = rbind(df, data)
   }
   return(df)
@@ -99,17 +95,20 @@ model.plot = function(model){
     geom_line(aes(y = Susceptible, color = "Susceptible")) +
     geom_line(aes(y = Daily.New.Case, color = "Daily New Case")) +
     geom_line(aes(y = Infected, color = "Infected")) +
-    # geom_line(aes(y = Total.In.Hospital, color = "Currently In Hospital")) +
-    # geom_line(aes(y = Recovered.In.Hospital, color = "Total Recovered in Hospital")) +
-    # geom_line(aes(y = Dead.In.Hospital, color = "Total Dead in Hospital")) +
+    geom_line(aes(y = Total.In.Hospital, color = "Currently In Hospital")) +
     geom_line(aes(y = Total.Recovered, color = "Total Recoverd")) +
     geom_line(aes(y = Total.Dead, color = "Total Dead")) +
     scale_color_discrete(name = "Compartment") +
     labs(y = "Population", title = "SIR Model") + 
     theme_minimal()
 }
-model = SIRHD.model(10000, 2, 5, 0.5, 0.8, 0.9, 0.9, 10, 5)
-# model.plot(model)
+
+model = SIRHD.model(10000, 2, 5, 0.5, 0.8, 0.9, 0.9, 0.1, 0.2)
+
+# Confirm the model by calculating that all compartments sum to population at any day
+# model$Pop = model$S + model$NS + model$Total.Infected + model$Total.Dead
+
+model.plot(model)
 ```
 
 ###Factorial Design of 5 factors with 288 levels
@@ -147,6 +146,8 @@ R.rate.h = c(0.9, 0.95)
 R.rate.nh = c(0.9, 0.95)
 T.h = c(10, 15)
 T.nh = c(5, 10)
+
+result_table = 
 
 for(N in pops){
   for(b in Beta){
