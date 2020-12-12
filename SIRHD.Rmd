@@ -1,0 +1,169 @@
+---
+title: "SIHRD Model"
+author: "Linh Tang, Britney He, Bowen Mince"
+date: "12/11/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(ggplot2)
+```
+
+```{r}
+SIRHD.model = function(N, beta, I.0, p, epsilon, theta, gamma, psi, lambda){
+  I.rate = beta/N
+  
+  curr.day = 0
+  S = p * N - I.0
+  NS.0 = N - S - I.0
+  NS = NS.0
+  NewInfected = I0
+  Total.Hospital = 0
+  Total.NonHospital = 0
+  Total.Infected = NewInfected + Total.Hospital + Total.NonHospital
+  Total.Infective = NewInfected + Total.NonHospital
+  Hospital.Recovered = 0
+  NonHospital.Recovered = 0
+  Hospital.Dead = 0
+  NonHospital.Dead = 0
+  Total.Recovered = Hospital.Recovered + NonHospital.Recovered
+  Total.Dead = Hospital.Dead + NonHospital.Dead
+  Pop = S + NS + Total.Infected + Total.Dead
+  
+  # If you want a full table like the excel, uncomment all lines in the df below
+  df = data_frame(Day = curr.day,
+                  Susceptible = S,
+                  Non.Susceptible = NS,
+                  Daily.New.Case = NewInfected,
+                  Total.In.Hospital = Total.Hospital,
+                  # Total.NonHospital = Total.NonHospital,
+                  Infected = Total.Infected,
+                  # Total.Infective = Total.Infective,
+                  # Recovered.In.Hospital = Hospital.Recovered,
+                  # Dead.In.Hospital = Hospital.Dead,
+                  Total.Recovered = Total.Recovered,
+                  Total.Dead = Total.Dead)
+  
+  # Watch the disease until it ends or at max 200 days
+  while(NewInfected * S > 0 & curr.day < 200){
+    curr.day = curr.day + 1
+    
+    # Number of individuals recovered from the infected in hospital (previous day)
+    Hospital.Recovered = Hospital.Recovered + round(theta * round(Total.Hospital * psi))
+    Hospital.Dead = Hospital.Dead + round(Total.Hospital * psi) - round(theta * round(Total.Hospital * psi))
+    
+    # Number of individuals dead from the infected in hospital (previous day)
+    NonHospital.Recovered = NonHospital.Recovered + round(gamma * round(Total.NonHospital * lambda))
+    NonHospital.Dead = NonHospital.Dead + round(Total.NonHospital * lambda) - round(gamma * round(Total.NonHospital * lambda))
+    
+    # Total number of recovered or dead so far (cumulative)
+    Total.Recovered = Hospital.Recovered + NonHospital.Recovered
+    Total.Dead = Hospital.Dead + NonHospital.Dead
+    
+    # Number of individuals hospitalized from the infected in the previous day
+    Total.Hospital = round(NewInfected * epsilon) + Total.Hospital - round(Total.Hospital * psi)
+    Total.NonHospital = NewInfected - round(NewInfected * epsilon) + Total.NonHospital - round(Total.NonHospital * lambda)
+    
+    # Newly infected case today and total actively infected so far
+    NewInfected = round(I.rate * S * Total.Infective)
+    Total.Infected = NewInfected + Total.Hospital + Total.NonHospital
+    
+    # Susceptible population left
+    S = S - NewInfected
+    
+    # Current non-susceptible group
+    NS = NS.0 + Total.Recovered
+    
+    # Infective group that can spread the disease the next day
+    Total.Infective = NewInfected + Total.NonHospital
+    
+    # Confirm population
+    Pop = S + NS + Total.Infected + Total.Dead
+    
+    # If you want a full table like the excel, uncomment this
+    # data = c(curr.day, S, NS, NewInfected, Total.Hospital, Total.NonHospital, Total.Infected, Total.Infective, Hospital.Recovered, Hospital.Dead, Total.Recovered, Total.Dead, Pop)
+    data = c(curr.day, S, NS, NewInfected, Total.Hospital, Total.Infected, Total.Recovered, Total.Dead)
+    df = rbind(df, data)
+  }
+  return(df)
+}
+
+model.plot = function(model){
+  ggplot(data  = model, aes(x = Day)) +
+    geom_line(aes(y = Susceptible, color = "Susceptible")) +
+    geom_line(aes(y = Daily.New.Case, color = "Daily New Case")) +
+    geom_line(aes(y = Infected, color = "Infected")) +
+    geom_line(aes(y = Total.In.Hospital, color = "Currently In Hospital")) +
+    geom_line(aes(y = Total.Recovered, color = "Total Recoverd")) +
+    geom_line(aes(y = Total.Dead, color = "Total Dead")) +
+    scale_color_discrete(name = "Compartment") +
+    labs(y = "Population", title = "SIR Model") + 
+    theme_minimal()
+}
+
+model = SIRHD.model(10000, 2, 5, 0.5, 0.8, 0.9, 0.9, 0.1, 0.2)
+
+# Confirm the model by calculating that all compartments sum to population at any day
+# model$Pop = model$S + model$NS + model$Total.Infected + model$Total.Dead
+
+model.plot(model)
+```
+
+###Factorial Design of 5 factors with 288 levels
+
+\begin{itemize}
+    \item Response Variables
+    \begin{itemize}
+        \item Total Death
+        \item Total Infected
+        \item Number of Days (disease lasts)
+        \item Peak Prevalence (Max Infected Proportion)
+        \item Max Hospitalized Proportion
+    \end{itemize}
+    \item Explanatory Variables
+    \begin{itemize}
+        \item Population $N$ (3 levels): small town (10,000), big town (100,000), and mega city (1,000,000)
+        \item Transmission Rate $\beta$ (2 levels): 2/population and 4/population
+        \item Hospitalization Rate $\varepsilon$ (3 levels): 50\%, 60\%, and 70\%
+        \item Recovery Rate with Hospitalization $\theta$ (2 levels): 90\% and 95\%
+        \item Recovery Rate without Hospitalization $\gamma$ (2 levels): 90\% and 95\%
+        \item Average days in hospital $\inv{\psi}$ (2 levels): 10 and 15
+        \item Average days in infected status $\inv{\lambda}$ (2 levels): 5 and 10
+    \end{itemize}
+\end{itemize}
+
+```{r}
+I0 = 5
+S.rate = 0.5
+
+# Parameter:
+Pops = c(10000, 100000, 1000000)
+Beta = c(2,4)
+Hrate = c(0.5, 0.6, 0.7)
+R.rate.h = c(0.9, 0.95)
+R.rate.nh = c(0.9, 0.95)
+T.h = c(10, 15)
+T.nh = c(5, 10)
+
+result_table = 
+
+for(N in pops){
+  for(b in Beta){
+    for(hr in Hrate){
+      for(rrh in R.rate.h){
+        for(rrnh in R.rate.nh){
+          for(th in T.h){
+            for(tnh in T.nh){
+              model = SIRHD.model(N, b, I0, S.rate, hr, rrh, rrhn, th, tnh)
+              model.plot(model)
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+```
