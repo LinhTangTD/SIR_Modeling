@@ -12,9 +12,10 @@ library(ggplot2)
 ```
 
 ```{r}
-SIRHD.model = function(N, beta, I.0, p, epsilon, theta, gamma, psi, lambda){
+model.data = function(N, beta, I.0, p, epsilon, theta, gamma, TimeH, TimeNH){
   I.rate = beta/N
-  
+  psi = 1/TimeH
+  lambda = 1/TimeNH
   curr.day = 0
   S = p * N - I.0
   NS.0 = N - S - I.0
@@ -46,7 +47,7 @@ SIRHD.model = function(N, beta, I.0, p, epsilon, theta, gamma, psi, lambda){
                   Total.Recovered = Total.Recovered,
                   Total.Dead = Total.Dead)
   
-  # Watch the disease until it ends or at max 200 days
+  # Watch the disease until it ends (daily new case = 0) or at max 200 days
   while(NewInfected * S > 0 & curr.day < 200){
     curr.day = curr.day + 1
     
@@ -90,25 +91,55 @@ SIRHD.model = function(N, beta, I.0, p, epsilon, theta, gamma, psi, lambda){
   return(df)
 }
 
-model.plot = function(model){
-  ggplot(data  = model, aes(x = Day)) +
-    geom_line(aes(y = Susceptible, color = "Susceptible")) +
-    geom_line(aes(y = Daily.New.Case, color = "Daily New Case")) +
-    geom_line(aes(y = Infected, color = "Infected")) +
-    geom_line(aes(y = Total.In.Hospital, color = "Currently In Hospital")) +
-    geom_line(aes(y = Total.Recovered, color = "Total Recoverd")) +
-    geom_line(aes(y = Total.Dead, color = "Total Dead")) +
-    scale_color_discrete(name = "Compartment") +
-    labs(y = "Population", title = "SIR Model") + 
-    theme_minimal()
+model.plot = function(data){
+  p = ggplot(data  = data, aes(x = Day)) +
+        geom_line(aes(y = Susceptible, color = "Susceptible")) +
+        geom_line(aes(y = Daily.New.Case, color = "Daily New Case")) +
+        geom_line(aes(y = Infected, color = "Infected")) +
+        geom_line(aes(y = Total.In.Hospital, color = "Currently In Hospital")) +
+        geom_line(aes(y = Total.Recovered, color = "Total Recoverd")) +
+        geom_line(aes(y = Total.Dead, color = "Total Dead")) +
+        scale_color_discrete(name = "Compartment") +
+        labs(y = "Population", title = "SIRHD Model") + 
+        theme_minimal()
+  return(p)
 }
 
-model = SIRHD.model(10000, 2, 5, 0.5, 0.8, 0.9, 0.9, 0.1, 0.2)
+model.info = function(data){
+  Last.Day = nrow(data)
+  Status = ifelse(data[Last.Day,]$Daily.New.Case == 0, "Ended", "Going")
+  Total.Death = data[Last.Day,]$Total.Dead
+  Total.Infected = sum(data$Infected)
+  Max.New.Case = max(data$Daily.New.Case)
+  Peak.Day.New.Case = data[data$Daily.New.Case == Max.New.Case,]$Day
+  Max.In.Hospital = max(data$Total.In.Hospital)
+  Peak.Day.Hospital= data[data$Total.In.Hospital == Max.In.Hospital,]$Day
+  info = c(Last.Day, Status, Total.Death, Total.Infected, Max.New.Case, Peak.Day.New.Case, Max.In.Hospital, Peak.Day.Hospital)
+  return(info)
+}
 
 # Confirm the model by calculating that all compartments sum to population at any day
-# model$Pop = model$S + model$NS + model$Total.Infected + model$Total.Dead
+model.confirm = function(data){
+  data$Pop = data$S + data$NS + data$Total.Infected + data$Total.Dead
+  return(data)
+}
 
-model.plot(model)
+### UNIT TESTING BY RUNNING EACH OF THESE FUNCTIONS BELOW
+# data = model.data(10000, 2, 5, 0.5, 0.8, 0.9, 0.9, 0.1, 0.2)
+# model.confirm(data)
+# model.plot(data)
+# model.info(data)
+
+SIRHD.model = function(N, beta, I.0, p, epsilon, theta, gamma, TimeH, TimeNH){
+  param = c(N, beta/N, epsilon, theta, gamma, TimeH, TimeNH)
+  data = model.data(N, beta, I.0, p, epsilon, theta, gamma, TimeH, TimeNH)
+  plot = model.plot(data)
+  result_info = model.info(data)
+  info = c(param, result_info)
+  return(list(data,plot,info))
+}
+
+test.model = SIRHD.model(10000, 2, 5, 0.5, 0.8, 0.9, 0.9, 10, 5)
 ```
 
 ###Factorial Design of 5 factors with 288 levels
@@ -138,26 +169,26 @@ model.plot(model)
 I0 = 5
 S.rate = 0.5
 
-# Parameter:
-Pops = c(10000, 100000, 1000000)
-Beta = c(2,4)
-Hrate = c(0.5, 0.6, 0.7)
-R.rate.h = c(0.9, 0.95)
-R.rate.nh = c(0.9, 0.95)
-T.h = c(10, 15)
-T.nh = c(5, 10)
+# List of Explanatory Variables:
+Pop.Lst = c(10000, 100000, 1000000)
+Beta.Lst = c(2,4)
+Hrate.Lst = c(0.5, 0.6, 0.7)
+RrateH.Lst = c(0.9, 0.95)
+RrateNH.Lst = c(0.9, 0.95)
+TimeH.Lst = c(10, 15)
+TimeNH.Lst = c(5, 10)
 
-result_table = 
-
-for(N in pops){
-  for(b in Beta){
-    for(hr in Hrate){
-      for(rrh in R.rate.h){
-        for(rrnh in R.rate.nh){
-          for(th in T.h){
-            for(tnh in T.nh){
-              model = SIRHD.model(N, b, I0, S.rate, hr, rrh, rrhn, th, tnh)
-              model.plot(model)
+#Pop.Lst, Beta.Lst, Hrate.Lst, RrateH.Lst, RrateNH.Lst, TimeH.Lst, TimeNH.Lst
+result_table = data.frame()
+for(N in Pop.Lst){
+  for(b in Beta.Lst){
+    for(hr in Hrate.Lst){
+      for(rrh in RrateH.Lst){
+        for(rrnh in RrateNH.Lst){
+          for(th in TimeH.Lst){
+            for(tnh in TimeNH.Lst){
+              model = SIRHD.model(N, b, I0, S.rate, hr, rrh, rrnh, th, tnh)
+              result_table = rbind(result_table, model[[3]], stringsAsFactors = FALSE)
             }
           }
         }
@@ -165,5 +196,9 @@ for(N in pops){
     }
   }
 }
-
+colnames(result_table) = c("Population", "TransmissionRate", "HospitalizationRate", "HospitalizedRecoveryRate", "Non-HospitalizedRecoveryRate", "HospitalizationTime", "InfectionTime", "LastDay", "Status", "TotalDeath", "Total Infected", "Max New Case", "PeakDayNewCase", "MaxInHospital", "PeakDayHospital")
+result_table[1:7] = as.data.frame(sapply(result_table[1:7], as.numeric))
+result_table[1:7] = format(result_table[1:7], scientific = FALSE)
+result_table[c(1:7,9)] = as.data.frame(sapply(result_table[c(1:7,9)], as.factor))
+result_table[c(8,10:15)] = as.data.frame(sapply(result_table[c(8,10:15)], as.numeric))
 ```
