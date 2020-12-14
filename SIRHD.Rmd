@@ -100,7 +100,7 @@ model.plot = function(data){
         geom_line(aes(y = Total.Recovered, color = "Total Recoverd")) +
         geom_line(aes(y = Total.Dead, color = "Total Dead")) +
         scale_color_discrete(name = "Compartment") +
-        labs(y = "Population", title = "SIRHD Model") + 
+        labs(y = "Population", title = "SIHRD Model") + 
         theme_minimal()
   return(p)
 }
@@ -130,7 +130,7 @@ model.confirm = function(data){
 # model.plot(data)
 # model.info(data)
 
-SIRHD.model = function(N, beta, I.0, p, epsilon, theta, gamma, TimeH, TimeNH){
+SIHRD.model = function(N, beta, I.0, p, epsilon, theta, gamma, TimeH, TimeNH){
   param = c(N, beta/N, epsilon, theta, gamma, TimeH, TimeNH)
   data = model.data(N, beta, I.0, p, epsilon, theta, gamma, TimeH, TimeNH)
   plot = model.plot(data)
@@ -139,7 +139,7 @@ SIRHD.model = function(N, beta, I.0, p, epsilon, theta, gamma, TimeH, TimeNH){
   return(list(data,plot,info))
 }
 
-test.model = SIRHD.model(10000, 2, 5, 0.5, 0.8, 0.9, 0.9, 10, 5)
+test.model = SIHRD.model(10000, 2, 5, 0.5, 0.8, 0.9, 0.9, 10, 5)
 ```
 
 ###Factorial Design of 5 factors with 288 levels
@@ -187,7 +187,7 @@ for(N in Pop.Lst){
         for(rrnh in RrateNH.Lst){
           for(th in TimeH.Lst){
             for(tnh in TimeNH.Lst){
-              model = SIRHD.model(N, b, I0, S.rate, hr, rrh, rrnh, th, tnh)
+              model = SIHRD.model(N, b, I0, S.rate, hr, rrh, rrnh, th, tnh)
               result_table = rbind(result_table, model[[3]], stringsAsFactors = FALSE)
             }
           }
