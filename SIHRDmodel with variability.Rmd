@@ -60,7 +60,7 @@ model.data = function(N, beta, I.0, p, epsilon, theta, gamma, TimeH, TimeNH){
     # First need to see how many are leaving the hospital
     Leaving.Hospital = rbinom(1, Total.Hospital, psi)
     # Then how many of those recovered
-    Recovered.Hospital.today <- rbinom(1, Leaving.Hospital, theta)
+    Recovered.Hospital.today = rbinom(1, Leaving.Hospital, theta)
     Hospital.Recovered = Hospital.Recovered + Recovered.Hospital.today
     Hospital.Dead = Hospital.Dead + Leaving.Hospital - Recovered.Hospital.today
     
