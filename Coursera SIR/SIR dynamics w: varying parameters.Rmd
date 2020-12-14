@@ -50,7 +50,7 @@ sir_model <- function(time, state, parameters) {
                                       # and move out of (-) the I compartment at a rate gamma (recovery)
       dR <- gamma * I                 # people move into (+) the R compartment from I at a rate gamma
       
-    # Return the number of people in the S, I and R compartments at each timestep 
+    # Return the number of people in the S, I and R compartments at each time step 
     # (in the same order as the input state variables)
     return(list(c(dS, dI, dR))) 
     })
