@@ -57,13 +57,17 @@ model.data = function(N, beta, I.0, p, epsilon, theta, gamma, TimeH, TimeNH){
     curr.day = curr.day + 1
     
     # Number of individuals recovered from the infected in hospital (previous day)
+    # First need to see how many are leaving the hospital
     Leaving.Hospital = rbinom(1, Total.Hospital, psi)
+    # Then how many of those recovered
     Recovered.Hospital.today <- rbinom(1, Leaving.Hospital, theta)
     Hospital.Recovered = Hospital.Recovered + Recovered.Hospital.today
     Hospital.Dead = Hospital.Dead + Leaving.Hospital - Recovered.Hospital.today
     
     # Number of individuals dead from the infected in hospital (previous day)
+    # First need to see how many not in hospital are getting over disease
     NonHospital.leaving = rbinom(1, Total.NonHospital, lambda)
+    # How many of those are recovering
     Recovered.NonHospital.today = rbinom(1, NonHospital.leaving, gamma)
     NonHospital.Recovered = NonHospital.Recovered + Recovered.NonHospital.today
     NonHospital.Dead = NonHospital.Dead + NonHospital.leaving - Recovered.NonHospital.today
