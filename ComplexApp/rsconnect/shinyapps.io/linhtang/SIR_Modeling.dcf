@@ -1,0 +1,12 @@
+name: SIR_Modeling
+title: SIR_Modeling
+username:
+account: linhtang
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 3398158
+bundleId: 3986001
+url: https://linhtang.shinyapps.io/SIR_Modeling/
+when: 1607934088.32806
+asMultiple: FALSE
+asStatic: FALSE
