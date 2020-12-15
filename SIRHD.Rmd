@@ -238,7 +238,6 @@ At the end of the first day, for the new 7 cases, $7 \times 0.8 = 5$ will be adm
 + Peak Prevalence (Max Infected Proportion)
 + Max Hospitalized Proportion
   
-  
 ### Explanatory Variables of 7 factors with 288 levels
 + Population $N$
   * small town - 10,000
@@ -307,6 +306,7 @@ result_table$DeathProportion = result_table$TotalDeath / numericPop
 result_table$InfectedProportion = result_table$TotalInfected / numericPop
 result_table$MaxCaseProportion = result_table$MaxNewCase / numericPop
 result_table$MaxHospitalProportion = result_table$MaxInHospital / numericPop
+result_table
 ```
 
 #### Response Variable: Total Death Proportion
