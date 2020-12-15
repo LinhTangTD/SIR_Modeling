@@ -1,0 +1,10 @@
+name: Publish Document
+title:
+username:
+account: rpubs
+server: rpubs.com
+hostUrl: rpubs.com
+appId: https://api.rpubs.com/api/v1/document/704558/ca2c53f6426441d8948304f9473fb731
+bundleId: https://api.rpubs.com/api/v1/document/704558/ca2c53f6426441d8948304f9473fb731
+url: http://rpubs.com/linhtang/704558
+when: 1608015253.46311

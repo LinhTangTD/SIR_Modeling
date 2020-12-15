@@ -151,27 +151,6 @@ complex.model = function(N, r, g, day, d1, c1, u1, PS, tp, tn, Test.cost, PTA, A
     return(df)
 }
 
-model.plotly = function(model){
-  accumulate_by <- function(dat, var) {
-    var <- lazyeval::f_eval(var, dat)
-    lvls <- plotly:::getLevels(var)
-    dats <- lapply(seq_along(lvls), function(x) {
-      cbind(dat[var %in% lvls[seq(1, x)], ], frame = lvls[[x]])
-    })
-    dplyr::bind_rows(dats)
-  }
-  visual_data = select(model, c(Day, Healthy, Infected, Recovered)) %>%
-    tidyr::gather(key = Compartment, value = Population, Healthy, Infected, Recovered) %>% 
-    accumulate_by(~Day)
-  fig = plot_ly(data = visual_data, type = "scatter", mode = "lines",
-                x = ~Day, y = ~Population, color = ~Compartment, frame = ~frame) %>% 
-          layout(hovermode = 'compare') %>%
-          animation_opts(frame = 100, transition = 0, redraw = FALSE) %>%
-          animation_slider(hide = T) %>%
-          animation_button(x = 1, xanchor = "right", y = -0.1, yanchor = "bottom", label = "View Plot")
-  return(fig)
-}
-
 SIR.plot = function(model){
   ggplot(data  = model, aes(x = Day)) +
     geom_line(aes(y = Healthy, color = "Healthy")) +
@@ -293,6 +272,27 @@ SIHRD.plot = function(data){
     labs(y = "Population", title = "SIHRD Model") + 
     theme_minimal()
   return(p)
+}
+
+SIHRD.plotly = function(model){
+  accumulate_by <- function(dat, var) {
+    var <- lazyeval::f_eval(var, dat)
+    lvls <- plotly:::getLevels(var)
+    dats <- lapply(seq_along(lvls), function(x) {
+      cbind(dat[var %in% lvls[seq(1, x)], ], frame = lvls[[x]])
+    })
+    dplyr::bind_rows(dats)
+  }
+  visual_data = select(model, c(Day, Susceptible, Daily.New.Case, Infected, Total.In.Hospital, Total.Recovered, Total.Dead)) %>%
+    tidyr::gather(key = Compartment, value = Population, Susceptible, Daily.New.Case, Infected, Total.In.Hospital, Total.Recovered, Total.Dead) %>% 
+    accumulate_by(~Day)
+  fig = plot_ly(data = visual_data, type = "scatter", mode = "lines",
+                x = ~Day, y = ~Population, color = ~Compartment, frame = ~frame) %>% 
+    layout(hovermode = 'compare') %>%
+    animation_opts(frame = 100, transition = 0, redraw = FALSE) %>%
+    animation_slider(hide = T) %>%
+    animation_button(x = 1, xanchor = "right", y = -0.1, yanchor = "bottom", label = "View Plot")
+  return(fig)
 }
 
 ui <- fluidPage(
@@ -486,18 +486,20 @@ ui <- fluidPage(
           style = "overflow-y:scroll; position:relative; max-height:900px",
             tabsetPanel(
                 tabPanel("Plot", 
-                         plotOutput("Plot"),
+                         plotOutput('Plot'),
                          # plotlyOutput("Plot1", width = "100%", height= "100%"),
                          htmlOutput("model_info")),
                 tabPanel("Data",
                          conditionalPanel(
                            condition = "input.Model == 'SIR'",
                            checkboxInput("FullTable", "See Full Table", TRUE)),
-                         dataTableOutput("df")),
+                         dataTableOutput("df"),
+                         # Button
+                         downloadButton("downloadData", "Download Data")),
                 tabPanel("SIR Model Info",
                          includeHTML("basic.model.html")))
                 # tabPanel("SIHRD Model Info",
-                #          includeHTML("SIRHD.model.html")),
+                #          includeHTML("SIHRD.html")),
                 # tabPanel("SIHRD (+TT) Model Info",
                 #          includeHTML("complex.model.html")))
         )
@@ -543,10 +545,10 @@ server <- function(input, output, session) {
                            var = input$Var)
             observeEvent(input$FullTable,
                          {if(input$FullTable){
-                           output$df = renderDataTable({df}, options = list(scrollX = TRUE))
+                           output$df = renderDataTable({df}, options = list(scrollX = TRUE, scrollY = "200px"))
                          } else {
                            small_df = select(df, c(Day, Healthy, Infected, Recovered))
-                           output$df = renderDataTable({small_df}, options = list(scrollX = TRUE))
+                           output$df = renderDataTable({small_df}, options = list(scrollX = TRUE, scrollY = "200px"))
                          }}
             )
             output$model_info = renderUI({
@@ -575,7 +577,7 @@ server <- function(input, output, session) {
                           TimeH = input$TimeH, 
                           TimeNH = input$TimeNH,
                           watch.day = input$Days)
-          output$df = renderDataTable({df}, options = list(scrollX = TRUE))
+          output$df = renderDataTable({df}, options = list(scrollX = TRUE, pageLength = 10))
           plot = SIHRD.plot(df)
           output$model_info = renderUI({
             Last.Day = nrow(df)
@@ -608,9 +610,17 @@ server <- function(input, output, session) {
       #                          PTA = input$PTA, A.eff = input$Aeff, A.cost = input$Acost,
       #                          PTB = input$PTB, B.eff = input$Beff, B.cost = input$Bcost)
       #   }
+      # Downloadable csv of selected dataset ----
+        output$downloadData <- downloadHandler(
+          filename = function() {
+            paste(input$Model, "_Data", ".csv", sep = "")
+          },
+          content = function(file) {
+            write.csv(df, file, row.names = FALSE)
+          }
+        )
         return(plot)
     })
-    
     # output$markdown <- renderUI({
     #     HTML(markdown::markdownToHTML(knitr::knit('../basic.model.rmd', quiet = TRUE)))
     # })

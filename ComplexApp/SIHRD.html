@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>SIHRD</title>
+  <style>
+    html {
+      line-height: 1.5;
+      font-family: Georgia, serif;
+      font-size: 20px;
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      word-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 1em;
+      }
+    }
+    @media print {
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, 'Lucida Console', Consolas, monospace;
+      font-size: 85%;
+      margin: 0;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    span.underline{text-decoration: underline;}
+    div.column{display: inline-block; vertical-align: top; width: 50%;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<h1 id="sihrd-model">SIHRD Model</h1>
+<h2 id="model-introduction">Model Introduction</h2>
+<p>The following model is developed from SIR-type compartmental models for COVID-19, including hospitalization as an intervention strategy. Contrary to basic SIR model in which the whole population is considered susceptible, the proposed deterministic model takes into account the fact that only certain percentage of the population being susceptible to get the disease.This model is proposed to trace epidemic evolution in an isolated population of <span class="math inline">\(N\)</span> individuals. At each moment of time (day), the population could be divided into five states (compartments):</p>
+<ul>
+<li><p><strong>Susceptible <em>(S)</em></strong>: currently at risk of getting the disease.</p></li>
+<li><p><strong>Newly Infected <em>(I)</em></strong>: currently infected and infectious (being able to transmit the disease).</p></li>
+<li><p><strong>Hospitalized <em>(H)</em></strong>: currently infected and in critical conditions but no longer infectious. (being isolated in hospital)</p></li>
+<li><p><strong>Non-Hospitalized <em>(NH)</em></strong>: Still infected but not in the hospital so is still infectious.</p></li>
+<li><p><strong>Recovered <em>(R)</em></strong>: was infected but successfully recovered (no matter if hospitalized or not), and is now immune from the disease (transferred to the Non-Susceptible group).</p></li>
+<li><p><strong>Dead <em>(D)</em></strong>: difference between Infected and Recovered <span class="math inline">\((I-R)\)</span> i.e. was infected but failed to recover.</p></li>
+</ul>
+<p>Note that there is one additional end state that recovered people will be counted in:</p>
+<ul>
+<li><p><strong>Non-Susceptible <em>(NS)</em></strong>: either successfully recovered or initially at no risk of getting infected.</p></li>
+</ul>
+<p>The model is built upon several assumptions:</p>
+<ol>
+<li><p>Hospitalized individuals can no longer spread the disease. This follows that individuals once hospitalized are isolated from the community. For Non-hospitalized individuals, we will assume that they still spread the disease, but at a lower rate than that of newely infected individuals.</p></li>
+<li><p>Immunity from the disease is achieved and becomes permanent upon recovery, which makes <em>R</em> an absorbing state. This means once recovered, an individual can no longer be susceptible (and thus moved into <em>NS</em> state). This assumption can be made as we have only literature finds the rate of re-infection to be negligible.</p></li>
+<li><p>The next day from being infected, a percentage of individuals will be placed into the hospital.</p></li>
+<li><p>Once becoming hospitalized or not hospitalized, individuals will leave the compartment at some average rate. Afterwards, they will have either recovered or died.</p></li>
+</ol>
+<p><img src="/Users/Linh/Desktop/SIR_Modeling/ComplexApp/e4efe671d52b4ef92a54bb0075d14ef5f5d4cd61.svg" /></p>
+<p>At the beginning of the disease, we will have an initial number of people susceptible to the disease and a initial number of people infected with the disease. Therefore, the compartments at <span class="math inline">\(t = 0\)</span> are:</p>
+<ul>
+<li><p><span class="math inline">\(S_0, I_0 &gt; 0\)</span></p></li>
+<li><p><span class="math inline">\(NS_0 \geq 0\)</span></p></li>
+<li><p><span class="math inline">\(H_0 = R_0 = D_0 = NH_0 = 0\)</span></p></li>
+</ul>
+<p>The compartmentalization of the population are governed by a set of parameters:</p>
+<ul>
+<li><p><strong>Transmission rate</strong> : the infection rate (The probability of an infection from a single contact multiplied by the average amount of contacts per person).</p></li>
+<li><p><strong>Hospitalization percentage</strong> : the percentage of infected individuals that will end up being hospitalized.</p></li>
+<li><p><strong>Hospitalized removal rate</strong> : The rate at which people will leave the hospital. The inverse of this parameter represents the average time spent in the hospital.</p></li>
+<li><p><strong>Non-hospitalized removal rate</strong> : The rate at which people will leave the hospital.The inverse of this parameter represents the average amount of time an infected individual remains infected and infective before moving to the next stage (recover or die).</p></li>
+<li><p><strong>Recovery percentage without hospitalization</strong> : The percentage of non-hospitalized infected people who recovered from the disease. <span class="math inline">\(1 - \gamma\)</span> is the percentage of people who will die after not being hospitalized.</p></li>
+<li><p><strong>Recovery percentage with hospitalization</strong> : the percentage chance that an individual has of becoming fully recovered after being hospitalized. <span class="math inline">\(1 - \theta\)</span> is the percentage of people who will die after being hospitalized.</p></li>
+</ul>
+<h2 id="model-equations">Model Equations</h2>
+<p>Taking into consideration our 5 compartments, the model is described by a set of equations: <span class="math display">\[\begin{aligned}
+    &amp; \Delta{S_t} =  - \beta S_{t-1}(I_{t-1} + \textit{NH}_{t-1}) \\
+    &amp; \Delta I_{t} = \beta S_{t-1}I_{t-1} - I_{t-1}  \\ 
+    &amp; \Delta {H_{t}} = \varepsilon*I_{t-1} - \psi H_{t-1} \\
+    &amp; \Delta {NH_{t}} = (1-\varepsilon)I_{t-1} - \lambda \textit{NH}_{t-1} \\
+    &amp; \Delta {R_{t}} = \lambda \gamma \textit{NH}_{t-1} + \psi \theta H_{t-1} \\
+    &amp; \Delta {D_{t}} = \lambda (1 - \gamma) \textit{NH}_{t-1} + \psi (1 - \theta) H_{t-1}\end{aligned}\]</span></p>
+<p>Notice that <span class="math inline">\(\Delta{S_t} + \Delta I_{t} + \Delta {H_{t}} + \Delta {NH_{t}} + \Delta {R_{t}} + \Delta {D_{t}} = 0\)</span> which means no person will leave or be added to the system.</p>
+<p>Moreover, <span class="math inline">\(S_t + I_t + H_t + H_t + NH_t + NS_t + D_t = P\)</span> (Note: <span class="math inline">\(NS\)</span> includes people who have recovered and who were initially non-susceptible.)</p>
+<p>Applying this model to the state of Iowa, which has a population of roughly 3 million (<span class="math inline">\(N = 3,000,000\)</span>), with a susceptible group of 1,499,995 (<span class="math inline">\(p = 0.5\)</span>) with 5 being initially infected (i.e the beginning of the disease). We use the per capita transmission rate of 3 over the total population (<span class="math inline">\(\beta = 0.000001\)</span>), hospitalization percentage of 70% (<span class="math inline">\(\varepsilon = 0.7\)</span>), a recovery rate of 90% (<span class="math inline">\(\gamma = 0.9\)</span>) for infected individual not being hospitalized, and 80% (<span class="math inline">\(\theta = 0.8\)</span>) for people in hospitalization. We assume that everyday around 10% of the infected group in the hospital the previous day will either recover or die (<span class="math inline">\(\psi = 0.1\)</span>). For people not hospitalized, we’ll have 20% (<span class="math inline">\(\lambda = 0.2\)</span>) either recover or die.</p>
+<p>Before getting detected and hospitalized, the 5 initial infected had spread the disease to <span class="math inline">\(5 \times 0.000001 \times 1,499,995 = 7\)</span> other people. On the first day, there are <span class="math inline">\(1,499,995 - 7 = 1,499,988\)</span> people left in the susceptible group, <span class="math inline">\(5 \times 0.8 = 4\)</span> infected people in the hospital and <span class="math inline">\(7 + 5 - 4 = 8\)</span> infected and infective people in the community. The total number of infected individuals is <span class="math inline">\(8 + 4 = 12\)</span>, but only 8 people will be the source of transmission for the second day.</p>
+<p>At the end of the first day, for the new 7 cases, <span class="math inline">\(7 \times 0.8 = 5\)</span> will be admitted to the hospital, increasing the total number of hospitalized individuals to <span class="math inline">\(4 + 5 = 9\)</span>, and <span class="math inline">\(12 - 9 = 3\)</span> remained infected in the community. On the second day, <span class="math inline">\(8 \times 0.000001 \times 1,499,988 = 12\)</span> people are newly infected with the disease, leaving <span class="math inline">\(1,499,988 - 12 = 1,499,976\)</span> in the susceptible group. The total number of infected at this point is <span class="math inline">\(12 + 12 = 24\)</span>, but only <span class="math inline">\(12 + 3 = 15\)</span> people will be the source of transmission for the second day. This model examines the disease for 81 days before it reaches equilibrium state, newly infected = 0.</p>
+<figure>
+<img src="IowaStateModel.png" alt="Evolution of Infectious Disease in Iowa State" /><figcaption aria-hidden="true">Evolution of Infectious Disease in Iowa State</figcaption>
+</figure>
+</body>
+</html>
