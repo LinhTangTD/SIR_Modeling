@@ -321,6 +321,44 @@ summary(Death.Anova)
 ```{r}
 Infected.Anova = aov(InfectedProportion ~ Population + TransmissionRate + HospitalizationRate + HospitalizedRecoveryRate + NonHospitalizedRecoveryRate + HospitalizationTime + InfectionTime, data = result_table)
 summary(Infected.Anova)
+
+Infected.Anova1 = aov(InfectedProportion ~ Population * TransmissionRate * InfectionTime, data = result_table)
+summary(Infected.Anova1)
+
+avg.TransmissionRate = result_table %>% group_by(TransmissionRate) %>% summarise(Average.Infected.Proportion = mean(InfectedProportion))
+
+avg.InfectionTime = result_table %>% group_by(InfectionTime) %>% summarise(Average.Infected.Proportion = mean(InfectedProportion))
+
+# Tidy and combine two summary tables
+avg.TransmissionRate$Var = "Transmission Rate"
+names(avg.TransmissionRate) = c("Level", "Average.Infected.Proportion", "Var")
+avg.InfectionTime$Var = "Infection Time"
+names(avg.InfectionTime) = c("Level", "Average.Infected.Proportion", "Var")
+avg.all = rbind(avg.TransmissionRate, avg.InfectionTime)
+
+# Main Effect Plots
+ggplot(avg.all, aes(x = Level, y = Average.Infected.Proportion, group = Var)) + 
+  geom_line() +
+  geom_point() + 
+  facet_grid(cols = vars(Var), scales = "free_x") + 
+  theme_bw() + 
+  ggtitle("Main Effects Plot for Total Infected Proportion") + 
+  geom_hline(yintercept = mean(result_table$InfectedProportion))
+
+
+# Summarize by both variables
+InfectedSummary = result_table %>% group_by(TransmissionRate, InfectionTime) %>% summarise(Average.Infected.Proportion = mean(InfectedProportion))
+
+# Interaction Plot
+ggplot(InfectedSummary, 
+       aes(x = TransmissionRate, 
+           y = Average.Infected.Proportion, 
+           group = InfectionTime, 
+           color = InfectionTime)) + 
+  geom_line() + 
+  geom_point() + 
+  theme_bw() + 
+  ggtitle("Interaction Plot for Infected Proportion")
 ```
 
 #### Response Variable: Maximum New Case Proportion
