@@ -137,7 +137,7 @@ model.data = function(N, beta, I.0, p, epsilon, theta, gamma, TimeH, TimeNH){
     Total.NonHospital = NewInfected - round(NewInfected * epsilon) + Total.NonHospital - round(Total.NonHospital * lambda)
     
     # Newly infected case today and total actively infected so far
-    NewInfected = round(I.rate * S * Total.Infective)
+    NewInfected = min(S, round(I.rate * S * Total.Infective))
     Total.Infected = NewInfected + Total.Hospital + Total.NonHospital
     
     # Susceptible population left
