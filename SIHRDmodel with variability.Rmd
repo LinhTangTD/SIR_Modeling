@@ -122,7 +122,7 @@ model.data = function(N, beta, I.0, p, epsilon, theta, gamma, TimeH, TimeNH){
                   Total.Dead = Total.Dead)
   
   # Watch the disease until it ends (daily new case = 0) or at max 200 days
-  while(Total.Infective * S > 0 & curr.day < 1000){
+  while(Total.Infected > 0 & curr.day < 1000){
     curr.day = curr.day + 1
     
     # Number of individuals recovered from the infected in hospital (previous day)
