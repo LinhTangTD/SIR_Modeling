@@ -212,8 +212,15 @@ SIRHD.model = function(N, beta, I.0, p, epsilon, theta, gamma, TimeH, TimeNH){
   return(list(data,plot,info))
 }
 
- test.model = SIRHD.model(3500, 4, 5, 0.5, 0.15, 0.9, 0.9, 10, 5)
- test.model
+# Helper function for string wrapping. 
+# Default 20 character target width.
+swr = function(string, nwrap=12) {
+  paste(strwrap(string, width=nwrap), collapse="\n")
+}
+swr = Vectorize(swr)
+
+test.model = SIRHD.model(3500, 4, 5, 0.5, 0.15, 0.9, 0.9, 10, 5)
+test.model
 ```
 
 ### Example
@@ -331,58 +338,79 @@ result_table
 
 #### Response Variable: Total Death Proportion
 
+##### ANOVA result
+
 ```{r}
 # Full model without interaction
 Death.Anova = aov(DeathProportion ~ Population + Beta + HospitalizationRate + HospitalizedRecoveryRate + NonHospitalizedRecoveryRate + HospitalizationTime + InfectionTime, data = result_table) 
 summary(Death.Anova)
 
 # Reduced model with interaction between significant variables from full model
-Death.Anova1 = aov(DeathProportion ~ Beta + HospitalizedRecoveryRate + NonHospitalizedRecoveryRate + InfectionTime 
-                   + Beta*HospitalizedRecoveryRate + Beta*NonHospitalizedRecoveryRate + Beta*InfectionTime 
-                   + HospitalizedRecoveryRate*NonHospitalizedRecoveryRate + HospitalizedRecoveryRate*InfectionTime + NonHospitalizedRecoveryRate*InfectionTime, 
+Death.Anova1 = aov(DeathProportion ~ Beta + HospitalizationRate + HospitalizedRecoveryRate + NonHospitalizedRecoveryRate + InfectionTime
+                   + Beta*HospitalizationRate + Beta*HospitalizedRecoveryRate + Beta*NonHospitalizedRecoveryRate + Beta*InfectionTime 
+                   + HospitalizationRate*HospitalizedRecoveryRate + HospitalizationRate*NonHospitalizedRecoveryRate + HospitalizationRate*InfectionTime +
+                   + HospitalizedRecoveryRate*NonHospitalizedRecoveryRate + HospitalizedRecoveryRate*InfectionTime 
+                   + NonHospitalizedRecoveryRate*InfectionTime, 
                    data = result_table)
 summary(Death.Anova1)
+```
 
+```{r}
 # Summarize main effects of each significant variable
 avg.Beta = result_table %>% group_by(Beta) %>% summarise(Average.Death.Proportion = mean(DeathProportion))
-avg.InfectionTime = result_table %>% group_by(InfectionTime) %>% summarise(Average.Death.Proportion = mean(DeathProportion))
+avg.HospitalizationRate = result_table %>% group_by(HospitalizationRate) %>% summarise(Average.Death.Proportion = mean(DeathProportion))
 avg.HospitalizedRecoveryRate = result_table %>% group_by(HospitalizedRecoveryRate) %>% summarise(Average.Death.Proportion = mean(DeathProportion))
 avg.NonHospitalizedRecoveryRate = result_table %>% group_by(NonHospitalizedRecoveryRate) %>% summarise(Average.Death.Proportion = mean(DeathProportion))
+avg.InfectionTime = result_table %>% group_by(InfectionTime) %>% summarise(Average.Death.Proportion = mean(DeathProportion))
 
 avg.Beta$Var = "Beta"
 names(avg.Beta) = c("Level", "Average.Death.Proportion", "Var")
 
-avg.HospitalizedRecoveryRate$Var = "Hospitalization Recovery Rate"
+avg.HospitalizationRate$Var = "Hospitalization Rate"
+names(avg.HospitalizationRate) = c("Level", "Average.Death.Proportion", "Var")
+
+avg.HospitalizedRecoveryRate$Var = "Hospitalized Recovery Rate"
 names(avg.HospitalizedRecoveryRate) = c("Level", "Average.Death.Proportion", "Var")
 
-avg.NonHospitalizedRecoveryRate$Var = "Non-Hospitalization Recovery Rate"
+avg.NonHospitalizedRecoveryRate$Var = "Non-Hospitalized Recovery Rate"
 names(avg.NonHospitalizedRecoveryRate) = c("Level", "Average.Death.Proportion", "Var")
 
-avg.InfectionTime$Var = "Infection Time"
+avg.InfectionTime$Var = "Quarantine"
 names(avg.InfectionTime) = c("Level", "Average.Death.Proportion", "Var")
+avg.InfectionTime$Level = ifelse(avg.InfectionTime$Level == "1", "yes", "no")
 
-avg.all = rbind(avg.Beta, avg.HospitalizedRecoveryRate, avg.NonHospitalizedRecoveryRate, avg.InfectionTime)
-
+avg.all = rbind(avg.Beta, avg.HospitalizationRate, avg.InfectionTime, avg.HospitalizedRecoveryRate, avg.NonHospitalizedRecoveryRate)
 # Main Effect Plots
+ann_text <- tribble(
+  ~Var, ~Average.Death.Proportion, ~Level,
+  #--|--|--
+  "Beta", 0.037, "2")
+avg.all$Var = swr(avg.all$Var, 20)
 ggplot(avg.all, aes(x = Level, y = Average.Death.Proportion, group = Var)) + 
-  geom_line() +
-  geom_point() + 
   facet_grid(cols = vars(Var), scales = "free_x") + 
   theme_bw() + 
-  ggtitle("Main Effects Plot for Total Infected Proportion") + 
-  geom_hline(yintercept = mean(result_table$DeathProportion))
+  labs(title = "Main Effects Plot for Total Death Proportion", y = "Average Total Death Proportion", x = "Variable Level") + 
+  geom_hline(yintercept = mean(result_table$DeathProportion), linetype='dashed', col = 'blue') + geom_line() +
+  geom_point() + 
+  geom_text(data = ann_text, label = swr("Grand Average", 5), colour = 'blue', size = 2.8)
+```
 
+```{r}
 # Summarize interaction effects by all combinations of significant variables
-DeathSummary = result_table %>% group_by(Beta, InfectionTime, HospitalizedRecoveryRate, NonHospitalizedRecoveryRate) %>% summarise(Average.Death.Proportion = mean(DeathProportion))
+DeathSummary = result_table %>% group_by(Beta, HospitalizationRate, HospitalizedRecoveryRate, NonHospitalizedRecoveryRate, InfectionTime) %>% summarise(Average.Death.Proportion = mean(DeathProportion))
 
-# New facet label names for dose variable
+# New facet label names for variables
 InfectionTime.labs <- c("With quarantine", "Without quarantine")
 names(InfectionTime.labs) <- c("1", "5")
 
-# New facet label names for supp variable
 Beta.labs <- c("Beta = 2", "Beta = 4")
 names(Beta.labs) <- c("2", "4")
 
+HospitalizationRate.labs <- c("5% Hospitalization", "10% Hospitalization", "15% Hospitalization")
+names(HospitalizationRate.labs) <- c("0.05", "0.10", "0.15")
+
+DeathSummary$InfectionTime = ifelse(DeathSummary$InfectionTime == 1, "With quarantine", "Without quarantine")
+DeathSummary$InfectionTime = swr(DeathSummary$InfectionTime)
 # Interaction Plot
 ggplot(DeathSummary, 
        aes(x = NonHospitalizedRecoveryRate, 
@@ -391,13 +419,18 @@ ggplot(DeathSummary,
            group = HospitalizedRecoveryRate)) +
   geom_point() + 
   geom_line() +
-  facet_grid(Beta ~ InfectionTime, labeller = labeller(InfectionTime = InfectionTime.labs, Beta = Beta.labs)) +
+  facet_grid(HospitalizationRate ~ Beta + InfectionTime, labeller = labeller(Beta = Beta.labs, HospitalizationRate = swr(HospitalizationRate.labs))) +
   # geom_point(aes(color = HospitalizedRecoveryRate)) + 
   theme_bw() + 
-  ggtitle("Interaction Plot for Infected Proportion")
+  labs(title = "Interaction Plot for Total Death Proportion", 
+       y = "Average Total Death Proportion", 
+       x = "Non-Hospitalized Recovery Rate",
+       color = "Hospitalized Recovery Rate")
 ```
 
 #### Response Variable: Total Infected Proportion
+
+##### ANOVA result
 
 ```{r}
 # Full model without interaction
@@ -409,81 +442,206 @@ Infected.Anova1 = aov(InfectedProportion ~ Beta + HospitalizationRate + Infectio
                       + Beta*HospitalizationRate + Beta*InfectionTime + HospitalizationRate*InfectionTime, 
                       data = result_table)
 summary(Infected.Anova1)
+```
 
+```{r}
 # Summarize main effects of each significant variable
 avg.Beta = result_table %>% group_by(Beta) %>% summarise(Average.Infected.Proportion = mean(InfectedProportion))
 avg.InfectionTime = result_table %>% group_by(InfectionTime) %>% summarise(Average.Infected.Proportion = mean(InfectedProportion))
 avg.HospitalizationRate = result_table %>% group_by(HospitalizationRate) %>% summarise(Average.Infected.Proportion = mean(InfectedProportion))
+
 avg.Beta$Var = "Beta"
 names(avg.Beta) = c("Level", "Average.Infected.Proportion", "Var")
+
 avg.HospitalizationRate$Var = "Hospitalization Rate"
 names(avg.HospitalizationRate) = c("Level", "Average.Infected.Proportion", "Var")
-avg.InfectionTime$Var = "Infection Time"
+
+avg.InfectionTime$Var = "Quarantine"
 names(avg.InfectionTime) = c("Level", "Average.Infected.Proportion", "Var")
+avg.InfectionTime$Level = ifelse(avg.InfectionTime$Level == "1", "yes", "no")
+
 avg.all = rbind(avg.Beta, avg.HospitalizationRate, avg.InfectionTime)
+avg.all$Var = swr(avg.all$Var, 20)
 
 # Main Effect Plots
+ann_text <- tribble(
+  ~Var, ~Average.Infected.Proportion, ~Level,
+  #--|--|--
+  "Beta", mean(result_table$InfectedProportion) + 0.004, "2")
+
 ggplot(avg.all, aes(x = Level, y = Average.Infected.Proportion, group = Var)) + 
+  facet_grid(cols = vars(Var), scales = "free_x") + 
   geom_line() +
   geom_point() + 
-  facet_grid(cols = vars(Var), scales = "free_x") + 
   theme_bw() + 
-  ggtitle("Main Effects Plot for Total Infected Proportion") + 
-  geom_hline(yintercept = mean(result_table$InfectedProportion))
+  labs(title = "Main Effects Plot for Total Infected Proportion", y = "Average Total Infected Proportion", x = "Variable Level") +
+  geom_hline(yintercept = mean(result_table$InfectedProportion), linetype='dashed', col = 'blue') + 
+  geom_text(data = ann_text, label = swr("Grand Average", 5), colour = 'blue', size = 3)
+```
 
+```{r}
 # Summarize interaction effects by all combinations of significant variables
 InfectedSummary = result_table %>% group_by(Beta, InfectionTime, HospitalizationRate) %>% summarise(Average.Infected.Proportion = mean(InfectedProportion))
-
-# New facet label names for dose variable
-InfectionTime.labs <- c("With quarantine", "Without quarantine")
-names(InfectionTime.labs) <- c("1", "5")
+InfectedSummary$InfectionTime = ifelse(InfectedSummary$InfectionTime == "1", "yes", "no")
+InfectedSummary$InfectionTime = factor(InfectedSummary$InfectionTime, levels = c("yes", "no"), ordered = TRUE )
 
 # Interaction Plot
 ggplot(InfectedSummary, 
-       aes(x = HospitalizationRate, 
+       aes(x = InfectionTime, 
            y = Average.Infected.Proportion, 
            group = Beta,
            color = Beta)) + 
   geom_line() +
   geom_point() + 
-  facet_grid(~ InfectionTime, labeller = labeller(InfectionTime = InfectionTime.labs, Beta = Beta.labs)) +
+  facet_grid(~ HospitalizationRate, labeller = labeller(HospitalizationRate = HospitalizationRate.labs)) +
   theme_bw() + 
-  ggtitle("Interaction Plot for Infected Proportion")
+  labs(title = "Interaction Plot for Total Infected Proportion", 
+       y = "Average Total Infected Proportion", 
+       x = "Quarantine")
 ```
 
 #### Response Variable: Maximum New Case Proportion
+
+##### ANOVA result
 
 ```{r}
 NewCase.Anova = aov(MaxCaseProportion ~ Population + Beta + HospitalizationRate + HospitalizedRecoveryRate + NonHospitalizedRecoveryRate + HospitalizationTime + InfectionTime, data = result_table)
 summary(NewCase.Anova)
-```
 
-#### Response Variable: Peak Day of Infected
+NewCase.Anova1 = aov(MaxCaseProportion ~ Population + Beta + HospitalizationRate + InfectionTime +
+                       Population*Beta + Population*HospitalizationRate + Population*InfectionTime + 
+                       Beta*HospitalizationRate + Beta*InfectionTime + HospitalizationRate*InfectionTime, 
+                     data = result_table)
+summary(NewCase.Anova1)
+```
 
 ```{r}
-PeakDay.Anova = aov(PeakDayNewCase ~ Population + Beta + HospitalizationRate + HospitalizedRecoveryRate + NonHospitalizedRecoveryRate + HospitalizationTime + InfectionTime, data = result_table)
-summary(PeakDay.Anova)
+# Summarize main effects of each significant variable
+avg.Population = result_table %>% group_by(Population) %>% summarise(Average.MaxCaseProportion = mean(MaxCaseProportion))
+avg.Beta = result_table %>% group_by(Beta) %>% summarise(Average.MaxCaseProportion = mean(MaxCaseProportion))
+avg.InfectionTime = result_table %>% group_by(InfectionTime) %>% summarise(Average.MaxCaseProportion = mean(MaxCaseProportion))
+avg.HospitalizationRate = result_table %>% group_by(HospitalizationRate) %>% summarise(Average.MaxCaseProportion = mean(MaxCaseProportion))
+
+avg.Population$Var = "Population"
+names(avg.Population) = c("Level", "Average.MaxCaseProportion", "Var")
+
+avg.Beta$Var = "Beta"
+names(avg.Beta) = c("Level", "Average.MaxCaseProportion", "Var")
+
+avg.HospitalizationRate$Var = "Hospitalization Rate"
+names(avg.HospitalizationRate) = c("Level", "Average.MaxCaseProportion", "Var")
+
+avg.InfectionTime$Var = "Quarantine"
+names(avg.InfectionTime) = c("Level", "Average.MaxCaseProportion", "Var")
+avg.InfectionTime$Level = ifelse(avg.InfectionTime$Level == "1", "yes", "no")
+
+avg.all = rbind(avg.Population, avg.Beta, avg.HospitalizationRate, avg.InfectionTime)
+avg.all$Var = swr(avg.all$Var, 20)
+
+# Main Effect Plots
+ann_text <- tribble(
+  ~Var, ~Average.MaxCaseProportion, ~Level,
+  #--|--|--
+  "Beta", mean(result_table$MaxCaseProportion) + 0.007, "2")
+
+ggplot(avg.all, aes(x = Level, y = Average.MaxCaseProportion, group = Var)) + 
+  facet_grid(cols = vars(Var), scales = "free_x") + 
+  geom_line() +
+  geom_point() + 
+  theme_bw() + 
+  labs(title = "Main Effects Plot for Maximum Daily New Case Proportion", y = "Average Maximum Daily New Case Proportion", x = "Variable Level") +
+  geom_hline(yintercept = mean(result_table$MaxCaseProportion), linetype='dashed', col = 'blue') + 
+  geom_text(data = ann_text, label = swr("Grand Average", 5), colour = 'blue', size = 3)
 ```
 
-#### Response Variable: Total Hospitalized Proportion
+```{r}
+# Summarize interaction effects by all combinations of significant variables
+MaxCaseSummary = result_table %>% group_by(Population, Beta, InfectionTime, HospitalizationRate) %>% summarise(Average.MaxCaseProportion = mean(MaxCaseProportion))
+MaxCaseSummary$InfectionTime = ifelse(MaxCaseSummary$InfectionTime == 1, "With quarantine", "Without quarantine")
+# MaxCaseSummary$InfectionTime = factor(MaxCaseSummary$InfectionTime, levels = c("yes", "no"), ordered = TRUE )
+
+# Interaction Plot
+ggplot(MaxCaseSummary, 
+       aes(x = Population, 
+           y = Average.MaxCaseProportion, 
+           group = Beta,
+           color = Beta)) + 
+  geom_line() +
+  geom_point() + 
+  facet_grid(InfectionTime ~ HospitalizationRate, labeller = labeller(HospitalizationRate = HospitalizationRate.labs)) +
+  theme_bw() + 
+  labs(title = "Interaction Plot for Maximum Daily New Case Proportion", 
+       y = "Average Maximum Daily New Case Proportion")
+```
+
+#### Response Variable: Max Hospitalized Proportion
 
 ```{r}
 Hospital.Anova = aov(MaxHospitalProportion ~ Population + Beta + HospitalizationRate + HospitalizedRecoveryRate + NonHospitalizedRecoveryRate + HospitalizationTime + InfectionTime, data = result_table)
 summary(Hospital.Anova)
+
+Hospital.Anova1 = aov(MaxHospitalProportion ~ Beta + HospitalizationRate + HospitalizationTime + InfectionTime
+                      + Beta*HospitalizationRate + Beta*HospitalizationTime + Beta*InfectionTime
+                      + HospitalizationRate*HospitalizationTime + HospitalizationRate*InfectionTime + HospitalizationTime*InfectionTime, 
+                      data = result_table)
+summary(Hospital.Anova1)
 ```
 
-#### Response Variable: Peak Day of Hospitalization
 
 ```{r}
-PeakDayH.Anova = aov(PeakDayHospital ~ Population + Beta + HospitalizationRate + HospitalizedRecoveryRate + NonHospitalizedRecoveryRate + HospitalizationTime + InfectionTime, data = result_table)
-summary(PeakDayH.Anova)
-```
+# Summarize main effects of each significant variable
+avg.Beta = result_table %>% group_by(Beta) %>% summarise(Average.MaxHospitalProportion = mean(MaxHospitalProportion))
+avg.HospitalizationRate = result_table %>% group_by(HospitalizationRate) %>% summarise(Average.MaxHospitalProportion = mean(MaxHospitalProportion))
+avg.HospitalizationTime = result_table %>% group_by(HospitalizationTime) %>% summarise(Average.MaxHospitalProportion = mean(MaxHospitalProportion))
+avg.InfectionTime = result_table %>% group_by(InfectionTime) %>% summarise(Average.MaxHospitalProportion = mean(MaxHospitalProportion))
 
-#### Response Variable: Maximum New Case Proportion
+avg.Beta$Var = "Beta"
+names(avg.Beta) = c("Level", "Average.MaxHospitalProportion", "Var")
 
-```{r}
-NewCase.Anova = aov(MaxCaseProportion ~ Population + Beta + HospitalizationRate + HospitalizedRecoveryRate + NonHospitalizedRecoveryRate + HospitalizationTime + InfectionTime , data = result_table)
-summary(NewCase.Anova)
+avg.HospitalizationRate$Var = "Hospitalization Rate"
+names(avg.HospitalizationRate) = c("Level", "Average.MaxHospitalProportion", "Var")
+
+avg.HospitalizationTime$Var = "Hospitalization Time (days)"
+names(avg.HospitalizationTime) = c("Level", "Average.MaxHospitalProportion", "Var")
+
+avg.InfectionTime$Var = "Quarantine"
+names(avg.InfectionTime) = c("Level", "Average.MaxHospitalProportion", "Var")
+avg.InfectionTime$Level = ifelse(avg.InfectionTime$Level == "1", "yes", "no")
+
+avg.all = rbind(avg.Beta, avg.HospitalizationRate, avg.InfectionTime, avg.HospitalizationTime)
+avg.all$Var = swr(avg.all$Var, 20)
+
+# Main Effect Plots
+ann_text <- tribble(
+  ~Var, ~Average.MaxHospitalProportion, ~Level,
+  #--|--|--
+  "Beta", mean(result_table$MaxHospitalProportion) + 0.003, "2")
+
+ggplot(avg.all, aes(x = Level, y = Average.MaxHospitalProportion, group = Var)) + 
+  facet_grid(cols = vars(Var), scales = "free_x") + 
+  geom_line() +
+  geom_point() + 
+  theme_bw() + 
+  labs(title = "Main Effects Plot for Maximum Daily Hospitalization Proportion", y = "Average Maximum Daily Hospitalization Proportion", x = "Variable Level") +
+  geom_hline(yintercept = mean(result_table$MaxHospitalProportion), linetype='dashed', col = 'blue') + 
+  geom_text(data = ann_text, label = swr("Grand Average", 5), colour = 'blue', size = 3)
+
+# Summarize interaction effects by all combinations of significant variables
+MaxHospitalSummary = result_table %>% group_by(Beta, InfectionTime, HospitalizationRate, HospitalizationTime) %>% summarise(Average.MaxHospitalProportion = mean(MaxHospitalProportion))
+MaxHospitalSummary$InfectionTime = ifelse(MaxHospitalSummary$InfectionTime == 1, "With quarantine", "Without quarantine")
+
+# Interaction Plot
+ggplot(MaxHospitalSummary, 
+       aes(x = HospitalizationTime, 
+           y = Average.MaxHospitalProportion, 
+           group = Beta,
+           color = Beta)) + 
+  geom_line() +
+  geom_point() + 
+  facet_grid(InfectionTime ~ HospitalizationRate, labeller = labeller(HospitalizationRate = HospitalizationRate.labs)) +
+  theme_bw() + 
+  labs(title = "Interaction Plot for Maximum Daily Hospitalization Proportion", 
+       y = "Average Maximum Daily Hospitalization Proportion")
 ```
 
 #### Response Variable: Peak Day of Infected
@@ -491,13 +649,6 @@ summary(NewCase.Anova)
 ```{r}
 PeakDay.Anova = aov(PeakDayNewCase ~ Population + Beta + HospitalizationRate + HospitalizedRecoveryRate + NonHospitalizedRecoveryRate + HospitalizationTime + InfectionTime, data = result_table)
 summary(PeakDay.Anova)
-```
-
-#### Response Variable: Total Hospitalized Proportion
-
-```{r}
-Hospital.Anova = aov(MaxHospitalProportion ~ Population + Beta + HospitalizationRate + HospitalizedRecoveryRate + NonHospitalizedRecoveryRate + HospitalizationTime + InfectionTime + Beta:InfectionTime, data = result_table)
-summary(Hospital.Anova)
 ```
 
 #### Response Variable: Peak Day of Hospitalization
