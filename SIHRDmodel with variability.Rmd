@@ -228,7 +228,8 @@ test.model
 Below is an example of a model on 10000 population with a tranmission rate = 2/10000, 5 initial infected inidividual, 50% susceptible rate, 20% hospitalization rate, recovery rate for both hospitalized and non-hospitalized individuals are 90%, time spend in hospital is 10 days, and infectious time (non-hospitalized) is 5 days.
 
 ```{r}
-test.model = SIRHD.model(10000, 4, 5, 0.5, 0.2, 0.9, 0.9, 10, 5)
+# N, beta, I.0, p, epsilon, theta, gamma, TimeH, TimeNH
+test.model = SIRHD.model(3000000, 1, 5, 0.5, 0.7, 0.9, 0.8, 10, 5)
 test.model[[1]]
 test.model[[2]]
 model.summary = cbind(c("Population", "Beta", "HospitalizationRate", "HospitalizedRecoveryRate", "NonHospitalizedRecoveryRate", "HospitalizationTime", "InfectionTime"), test.model[[3]][1:7], c("LastDay", "Status", "TotalDeath", "TotalInfected", "MaxNewCase", "PeakDayNewCase", "MaxInHospital", "PeakDayHospital"), test.model[[3]][8:15])
@@ -389,7 +390,7 @@ avg.all$Var = swr(avg.all$Var, 20)
 ggplot(avg.all, aes(x = Level, y = Average.Death.Proportion, group = Var)) + 
   facet_grid(cols = vars(Var), scales = "free_x") + 
   theme_bw() + 
-  labs(title = "Main Effects Plot for Total Death Proportion", y = "Average Total Death Proportion", x = "Variable Level") + 
+  labs(y = "Average Total Death Proportion", x = "Variable Level") + 
   geom_hline(yintercept = mean(result_table$DeathProportion), linetype='dashed', col = 'blue') + geom_line() +
   geom_point() + 
   geom_text(data = ann_text, label = swr("Grand Average", 5), colour = 'blue', size = 2.8)
@@ -419,13 +420,13 @@ ggplot(DeathSummary,
            group = HospitalizedRecoveryRate)) +
   geom_point() + 
   geom_line() +
-  facet_grid(HospitalizationRate ~ Beta + InfectionTime, labeller = labeller(Beta = Beta.labs, HospitalizationRate = swr(HospitalizationRate.labs))) +
+  facet_grid(InfectionTime ~ Beta + HospitalizationRate, labeller = labeller(Beta = Beta.labs, HospitalizationRate = swr(HospitalizationRate.labs))) +
   # geom_point(aes(color = HospitalizedRecoveryRate)) + 
   theme_bw() + 
-  labs(title = "Interaction Plot for Total Death Proportion", 
-       y = "Average Total Death Proportion", 
+  labs(y = "Average Total Death Proportion", 
        x = "Non-Hospitalized Recovery Rate",
-       color = "Hospitalized Recovery Rate")
+       color = "Hospitalized Recovery Rate") +
+  theme(legend.position="top")
 ```
 
 #### Response Variable: Total Infected Proportion
@@ -474,7 +475,7 @@ ggplot(avg.all, aes(x = Level, y = Average.Infected.Proportion, group = Var)) +
   geom_line() +
   geom_point() + 
   theme_bw() + 
-  labs(title = "Main Effects Plot for Total Infected Proportion", y = "Average Total Infected Proportion", x = "Variable Level") +
+  labs(y = "Average Total Infected Proportion", x = "Variable Level") +
   geom_hline(yintercept = mean(result_table$InfectedProportion), linetype='dashed', col = 'blue') + 
   geom_text(data = ann_text, label = swr("Grand Average", 5), colour = 'blue', size = 3)
 ```
@@ -495,9 +496,9 @@ ggplot(InfectedSummary,
   geom_point() + 
   facet_grid(~ HospitalizationRate, labeller = labeller(HospitalizationRate = HospitalizationRate.labs)) +
   theme_bw() + 
-  labs(title = "Interaction Plot for Total Infected Proportion", 
-       y = "Average Total Infected Proportion", 
-       x = "Quarantine")
+  labs(y = "Average Total Infected Proportion", 
+       x = "Quarantine") +
+  theme(legend.position="top")
 ```
 
 #### Response Variable: Maximum New Case Proportion
@@ -549,7 +550,7 @@ ggplot(avg.all, aes(x = Level, y = Average.MaxCaseProportion, group = Var)) +
   geom_line() +
   geom_point() + 
   theme_bw() + 
-  labs(title = "Main Effects Plot for Maximum Daily New Case Proportion", y = "Average Maximum Daily New Case Proportion", x = "Variable Level") +
+  labs(y = "Average Maximum Daily New Case Proportion", x = "Variable Level") +
   geom_hline(yintercept = mean(result_table$MaxCaseProportion), linetype='dashed', col = 'blue') + 
   geom_text(data = ann_text, label = swr("Grand Average", 5), colour = 'blue', size = 3)
 ```
@@ -570,8 +571,8 @@ ggplot(MaxCaseSummary,
   geom_point() + 
   facet_grid(InfectionTime ~ HospitalizationRate, labeller = labeller(HospitalizationRate = HospitalizationRate.labs)) +
   theme_bw() + 
-  labs(title = "Interaction Plot for Maximum Daily New Case Proportion", 
-       y = "Average Maximum Daily New Case Proportion")
+  labs(y = "Average Maximum Daily New Case Proportion") +
+  theme(legend.position="top")
 ```
 
 #### Response Variable: Max Hospitalized Proportion
@@ -622,7 +623,7 @@ ggplot(avg.all, aes(x = Level, y = Average.MaxHospitalProportion, group = Var)) 
   geom_line() +
   geom_point() + 
   theme_bw() + 
-  labs(title = "Main Effects Plot for Maximum Daily Hospitalization Proportion", y = "Average Maximum Daily Hospitalization Proportion", x = "Variable Level") +
+  labs(y = "Average Maximum Daily Hospitalization Proportion", x = "Variable Level") +
   geom_hline(yintercept = mean(result_table$MaxHospitalProportion), linetype='dashed', col = 'blue') + 
   geom_text(data = ann_text, label = swr("Grand Average", 5), colour = 'blue', size = 3)
 
@@ -640,8 +641,8 @@ ggplot(MaxHospitalSummary,
   geom_point() + 
   facet_grid(InfectionTime ~ HospitalizationRate, labeller = labeller(HospitalizationRate = HospitalizationRate.labs)) +
   theme_bw() + 
-  labs(title = "Interaction Plot for Maximum Daily Hospitalization Proportion", 
-       y = "Average Maximum Daily Hospitalization Proportion")
+  labs(y = "Average Maximum Daily Hospitalization Proportion") +
+  theme(legend.position="top")
 ```
 
 #### Response Variable: Peak Day of Infected
