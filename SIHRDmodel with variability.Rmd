@@ -13,74 +13,12 @@ library(dplyr)
 library(ggplot2)
 ```
 
-## 1. Model Introduction
+### 1. Building Model
 
-The following model is developed from SIR-type compartmental models for COVID-19, including hospitalization as an intervention strategy. Contrary to basic SIR model in which the whole population is considered susceptible, the proposed deterministic model takes into account the fact that only certain percentage of the population being susceptible to get the disease. 
+### Model Functions
 
-### Compartments
-
-This model is proposed to trace epidemic evolution in an isolated population of $N$ individuals. At each moment of time (day), the population could be divided into five states (compartments):
-
-* **Susceptible $(S)$**: currently at risk of getting the disease
-* **Newly Infected $(I)$**: currently infected and infectious (being able to transmit the disease)
-* **Hospitalized $(H)$**: currently infected and in critical conditions but no longer infectious.  (beingisolated in hospital)
-* **Non-Hospitalized $(NH)$**: Still infected but not in the hospital so is still infectious
-* **Recovered $(R)$**: was infected but successfully recovered (no matter if hospitalized or not), and isnow immune from the disease (transferred to the Non-Susceptible group).
-* **Dead $(D)$**: difference between Infected and Recovered (I−R) i.e.  was infected but failed to recover.
-
-Note that there is one additional end state that recovered people will be counted in:
-
-* **Non-Susceptible $(NS)$**: either successfully recovered or initially at no risk of getting infected.
-
-### Assumptions
-
-The model is built upon several assumptions:
-
-* Hospitalized individuals can no longer spread the disease. This follows that individuals once hos-pitalized are isolated from the community. For Non-hospitalized individuals, we will assume thatthey still spread the disease, but at a lower rate than that of newely infected individuals.
-* Immunity from the disease is achieved and becomes permanent upon recovery, which makesRanabsorbing state. This means once recovered, an individual can no longer be susceptible (and thusmoved intoNSstate). This assumption can be made as we have only literature finds the rate ofre-infection to be negligible.
-* The next day from being infected, a percentage of individuals will be placed into the hospital.
-* Once becoming hospitalized or not hospitalized,  individuals will leave the compartment at someaverage rate. Afterwards, they will have either recovered or died.
-
-### Parameters
-
-At the beginning of the disease, we will have an initial number of people susceptible to the diseaseand a initial number of people infected with the disease.  Therefore, the compartments at $t= 0$ are:
-* $S_0, I_0 > 0$
-* $NS_0 \geq 0$
-* $H_0 = R_0 = D_0 = {NH}_0 = 0$
-
-The compartmentalization of the population are governed by a set of parameters:
-
-* **Transmission rate $\beta$**: the infection rate (The probability of an infection from a single contact multiplied by the average amount of contacts per person).
-* **Hospitalization percentage $\varepsilon$**: the  percentage ofinfected individuals that will endup  being hospitalized.
-* **Hospitalized removal rate $\psi$**: The rate at which people will leave the hospital.  The inverse ofthis parameter represents the average time spent in the hospital.
-* **Non-hospitalized removal rate $\lambda$**: The rate at which people will leave the hospital.The inverse of  this parameter represents the average amount  of  time  an  infected  individual  remains  infectedand infective before moving to the next stage (recover or die).
-* **Recovery percentage without hospitalization $\gamma$**: The percentage of non-hospitalized infectedpeople who recovered from the disease. **$1-\gamma$** is the percentage of people who will die after not being hospitalized.
-* **Recovery percentage with hospitalization $\theta$**: the percentage chance that an individual has ofbecoming fully recovered after being hospitalized. **$1-\theta$** is the percentage of people who will die after being hospitalized.
-
-<center>
-
-![Schematic flow chart between compartments](ComplexApp/scheme.png){width=70%}
-
-</center>
-
-### Mathematical Equations
-
-Taking into consideration our 5 compartments, the model is described by a set of equations:
-
-\begin{align*}
-    \Delta{S_t} & =  - \frac{\beta S_{t-1}}{N} (I_{t-1} + \textit{NH}_{t-1}) \\
-    \Delta{I_t} & = \frac{\beta S_{t-1}}{N}I_{t-1} - I_{t-1}  \\ 
-    \Delta{H_{t}} & = \varepsilon*I_{t-1} - \psi H_{t-1} \\
-    \Delta{NH_{t}} & = (1-\varepsilon)I_{t-1} - \lambda \textit{NH}_{t-1} \\
-    \Delta{R_{t}} & = \lambda \gamma \textit{NH}_{t-1} + \psi \theta H_{t-1} \\
-    \Delta{D_{t}} & = \lambda (1 - \gamma) \textit{NH}_{t-1} + \psi (1 - \theta) H_{t-1}
-\end{align*}
-
-Notice that $\Delta{S_t} + \Delta I_{t} + \Delta {H_{t}} + \Delta {NH_{t}} + \Delta {R_{t}} + \Delta {D_{t}} = 0$ which means no person will leave or be added to the system.
-
-Moreover, $S_t + I_t + H_t + H_t + NH_t + NS_t + D_t = P$ (Note: $NS$ includes people who have recovered and who were initially non-susceptible.)
-
-```{r}
+```{r func}
+# Simulate Data
 model.data = function(N, beta, I.0, p, epsilon, theta, gamma, TimeH, TimeNH){
   I.rate = beta/N
   psi = 1/TimeH
@@ -173,6 +111,8 @@ model.data = function(N, beta, I.0, p, epsilon, theta, gamma, TimeH, TimeNH){
   }
   return(df)
 }
+
+# Plot out the evolution over time
 model.plot = function(data){
   p = ggplot(data  = data, aes(x = Day)) +
         geom_line(aes(y = Susceptible, color = "Susceptible")) +
@@ -182,10 +122,12 @@ model.plot = function(data){
         geom_line(aes(y = Total.Recovered, color = "Total Recoverd")) +
         geom_line(aes(y = Total.Dead, color = "Total Dead")) +
         scale_color_discrete(name = "Compartment") +
-        labs(y = "Population", title = "SIRHD Model") + 
+        labs(y = "Population", title = "SIHRD Model") + 
         theme_minimal()
   return(p)
 }
+
+# Extract info from the data
 model.info = function(data){
   Last.Day = nrow(data)
   Status = ifelse(data[Last.Day,]$Daily.New.Case == 0, "Ended", "Going")
@@ -198,12 +140,15 @@ model.info = function(data){
   info = c(Last.Day, Status, Total.Death, Total.Infected, Max.New.Case, Peak.Day.New.Case, Max.In.Hospital, Peak.Day.Hospital)
   return(info)
 }
+
 # Confirm the model by calculating that all compartments sum to population at any day
 model.confirm = function(data){
   data$Pop = data$S + data$NS + data$Total.Infected + data$Total.Dead
   return(data)
 }
-SIRHD.model = function(N, beta, I.0, p, epsilon, theta, gamma, TimeH, TimeNH){
+
+# Combine all functions
+SIHRD.model = function(N, beta, I.0, p, epsilon, theta, gamma, TimeH, TimeNH){
   param = c(N, beta, epsilon, theta, gamma, TimeH, TimeNH)
   data = model.data(N, beta, I.0, p, epsilon, theta, gamma, TimeH, TimeNH)
   plot = model.plot(data)
@@ -212,80 +157,98 @@ SIRHD.model = function(N, beta, I.0, p, epsilon, theta, gamma, TimeH, TimeNH){
   return(list(data,plot,info))
 }
 
-# Helper function for string wrapping. 
-# Default 20 character target width.
+# Helper function for string wrapping in facet plots, default is 12 characters
 swr = function(string, nwrap=12) {
   paste(strwrap(string, width=nwrap), collapse="\n")
 }
 swr = Vectorize(swr)
-
-test.model = SIRHD.model(3500, 4, 5, 0.5, 0.15, 0.9, 0.9, 10, 5)
-test.model
 ```
 
 ### Example
 
-Below is an example of a model on 10000 population with a tranmission rate = 2/10000, 5 initial infected inidividual, 50% susceptible rate, 20% hospitalization rate, recovery rate for both hospitalized and non-hospitalized individuals are 90%, time spend in hospital is 10 days, and infectious time (non-hospitalized) is 5 days.
+Below is an example of a model on 10000 population with a tranmission rate = 2/10000, 5 initial infected inidividual, 50% susceptible rate, 5% hospitalization rate, recovery rate for both hospitalized and non-hospitalized individuals are 90%, time spend in hospital is 10 days, and strict quarantine is applied.
 
-```{r}
-# N, beta, I.0, p, epsilon, theta, gamma, TimeH, TimeNH
-test.model = SIRHD.model(3000000, 1, 5, 0.5, 0.7, 0.9, 0.8, 10, 5)
-test.model[[1]]
+```{r example}
+test.model = SIHRD.model(10000, 2, 5, 0.5, 0.05, 0.9, 0.9, 10, 1)
+# data
 test.model[[2]]
+# graph
+test.model[[2]]
+# summary
 model.summary = cbind(c("Population", "Beta", "HospitalizationRate", "HospitalizedRecoveryRate", "NonHospitalizedRecoveryRate", "HospitalizationTime", "InfectionTime"), test.model[[3]][1:7], c("LastDay", "Status", "TotalDeath", "TotalInfected", "MaxNewCase", "PeakDayNewCase", "MaxInHospital", "PeakDayHospital"), test.model[[3]][8:15])
 model.summary = as.data.frame(model.summary)
 colnames(model.summary) = c("Parameter", "Value", "Result", "Value")
 model.summary
 ```
 
-### Iowa State Experiments
+# Running 10 simulations to show randomness and variability
 
-Applying this model to the state of Iowa, which has a population of roughly 3 million ($N = 3,000,000$), with a susceptible group of 1,499,995 ($p = 0.5$) with 5 being initially infected  (i.e the beginning of the disease). We use the per capita transmission rate of 3 over the total population ($\beta = 0.000001$), hospitalization percentage of 70\% ($\varepsilon = 0.7$), a recovery rate of 90\% ($\gamma = 0.9$) for infected individual not being hospitalized, and 80\% ($\theta = 0.8$) for people in hospitalization. We assume that everyday around 10\% of the infected group in the hospital the previous day will either recover or die ($\psi = 0.1$). For people not hospitalized, we'll have 20\% ($\lambda = 0.2$) either recover or die. 
+```{r 10sims}
+# 10 simulations of the above model
+model.rep.plot = function(N, beta, I.0, p, epsilon, theta, gamma, TimeH, TimeNH, reps = 10){
+  line.plot = function(data){
+    size = 0.2
+    list(geom_line(data = data, aes(x = Day, y = Infected, color = "Daily Infected"), size = size),
+         geom_area(data = data, aes(x = Day, y = Infected), fill = "coral", alpha = 0.05),
+         geom_line(data = data, aes(x = Day, y = Total.Dead, color = "Total Dead"), size = size),
+         geom_line(data = data, aes(x = Day, y = Susceptible, color = "Susceptible"), size = size),
+         geom_line(data = data, aes(x = Day, y = Total.Recovered, color = "Total Recoverd"), size = size),
+         geom_line(data = data, aes(x = Day, y = Total.In.Hospital, color = "Daily Hospitalized"), size = size),
+         geom_line(data = data, aes(x = Day, y = Daily.New.Case, color = "Daily New Case"), size = size),
+         scale_color_manual(values = c("Daily Infected" = "red", 
+                                      "Total Dead"= "black", 
+                                      "Susceptible" = "darkorange", 
+                                      "Total Recoverd" = "green", 
+                                      "Daily Hospitalized" = "darkorchid1", 
+                                      "Daily New Case"= "blue2"))
+    )
+  }
+  if(TimeNH == 1){
+    title = "SIHRD Model with quarantine enforced"
+  } else {
+    title = "SIHRD Model without quarantine"
+  }
+  plot = ggplot() + labs(y = "Population", title = title, color = "Compartment") + theme_minimal()
+  for(i in 1:reps){
+    data = model.data(N, beta, I.0, p, epsilon, theta, gamma, TimeH, TimeNH)
+    plot = plot + line.plot(data)
+  }
+  plot
+  return(plot)
+}
 
-Before getting detected and hospitalized, the 5 initial infected had spread the disease to $5 \times 0.000001 \times 1,499,995 = 7$ other people. On the first day, there are $1,499,995 - 7 = 1,499,988$ people left in the susceptible group, $5 \times 0.8 = 4$ infected people in the hospital and $7 + 5 - 4 = 8$ infected and infective people in the community. The total number of infected individuals is $8 + 4 = 12$, but only 8 people will be the source of transmission for the second day.
-
-At the end of the first day, for the new 7 cases, $7 \times 0.8 = 5$ will be admitted to the hospital, increasing the total number of hospitalized individuals to $4 + 5 = 9$, and $12 - 9 = 3$ remained infected in the community. On the second day, $8 \times 0.000001 \times 1,499,988 = 12$ people are newly infected with the disease, leaving $1,499,988 - 12 = 1,499,976$ in the susceptible group. The total number of infected at this point is $12 + 12 = 24$, but only $12 + 3 = 15$ people will be the source of transmission for the second day. This model examines the disease for 81 days before it reaches equilibrium state, newly infected = 0.
-
-![Evolution of Infectious Disease in Iowa State](ComplexApp/IowaStateModel.png)
-
+# SIHRD model with 10 reps and all parameters set 
+# at lowest level under 2 conditions: with and without quarantine
+a = model.rep.plot(10000, 2, 5, 0.5, 0.05, 0.9, 0.9, 10, 1)
+a + annotate(geom = "curve", xend = 65, yend = 1600, x = 73, y = 400, curvature = .2, arrow = arrow(length = unit(1, "mm")), size=0.7, alpha=0.6) +
+  annotate(geom = "text", x = 57, y = 1800, label = "Total Death", hjust = "left") + 
+  
+  annotate(geom = "curve", xend = 24, yend = 2150, x = 13.5, y = 550, curvature = -.2, arrow = arrow(length = unit(2, "mm")), color = "blue", size=0.7, alpha=0.6) +
+  annotate(geom = "text", x = 24, y = 2300, label = "Max Daily New Case", hjust = "left", color = "blue") + 
+  
+  annotate(geom = "curve", xend = 30, yend = 1300, x = 15, y = 680, curvature = -.2, arrow = arrow(length = unit(2, "mm")), color = "red", size=0.7, alpha=0.6) + 
+  annotate(geom = "text", x = 31, y = 1400, label = "Total Infected", hjust = "left", color = "red") +
+  
+  annotate(geom = "curve", xend = 30, yend = 600, x = 18, y = 110, curvature = -.2, arrow = arrow(length = unit(2, "mm")), color = "darkorchid1", size=0.7, alpha=0.6) + 
+  annotate(geom = "text", x = 31, y = 650, label = "Max Daily Hospitalized", hjust = "left", color = "darkorchid1") +  theme(legend.position="bottom")
+b = model.rep.plot(10000, 2, 5, 0.5, 0.05, 0.9, 0.9, 10, 5)
+b + annotate(geom = "curve", xend = 70, yend = 1000, x = 62, y = 600, curvature = -.2, arrow = arrow(length = unit(1, "mm")), size=0.7, alpha=0.6) +
+  annotate(geom = "text", x = 71, y = 1050, label = "Total Death", hjust = "left") + 
+  
+  annotate(geom = "curve", xend = 24, yend = 2400, x = 11, y = 1070, curvature = -.2, arrow = arrow(length = unit(2, "mm")), color = "blue", size=0.7, alpha=0.6) +
+  annotate(geom = "text", x = 24, y = 2600, label = "Max Daily New Case", hjust = "left", color = "blue") + 
+  
+  annotate(geom = "curve", xend = 30, yend = 1500, x = 16, y = 1000, curvature = -.2, arrow = arrow(length = unit(2, "mm")), color = "red", size=0.7, alpha=0.6) + 
+  annotate(geom = "text", x = 31, y = 1600, label = "Total Infected", hjust = "left", color = "red") +
+  
+  annotate(geom = "curve", xend = 30, yend = 900, x = 14, y = 230, curvature = -.2, arrow = arrow(length = unit(2, "mm")), color = "darkorchid1", size=0.7, alpha=0.6) + 
+  annotate(geom = "text", x = 31, y = 1000, label = "Max Daily Hospitalized", hjust = "left", color = "darkorchid1")  +  theme(legend.position="bottom")
+```
 
 ## 2. Factorial Experiment Design 
 
-### Response Variables
-+ Total Death Proportion
-+ Total Infected Proportion
-+ Number of Days (disease lasts)
-+ Peak Prevalence (Max Infected Proportion)
-+ Max Hospitalized Proportion
-  
-  
-### Explanatory Variables of 7 factors with 288 levels
-+ Population $N$
-  * small town - 10,000
-  * big town - 100,000
-  * mega city - 1,000,000
-+ Transmission Rate $\beta$
-  * $1$
-  * $2$
-  * $4$
-+ Hospitalization Rate $\varepsilon$
-  * 5\%
-  * 10\%
-  * 15\%
-+ Recovery Rate with Hospitalization $\theta$
-  * 90%
-  * 95%
-+ Recovery Rate without Hospitalization $\gamma$
-  * 90%
-  * 95%
-+ Average time in hospital ${\psi}^{-1}$
-  * 5 days
-  * 10 days
-+ Average time in infected status ${\lambda}^{-1}$
-  * 1 day
-  * 5 days
-
-```{r}
+```{r fact.exp}
+# Factorial Experiment
 I.0 = 5
 S.rate = 0.5
 
@@ -311,7 +274,7 @@ for(i in 1:sims){
           for(rrnh in RrateNH.Lst){
             for(th in TimeH.Lst){
               for(tnh in TimeNH.Lst){
-                model = SIRHD.model(N, b, I.0, S.rate, hr, rrh, rrnh, th, tnh)
+                model = SIHRD.model(N, b, I.0, S.rate, hr, rrh, rrnh, th, tnh)
                 result_table = rbind(result_table, model[[3]], stringsAsFactors = FALSE)
               }
             }
@@ -337,26 +300,42 @@ result_table$MaxHospitalProportion = result_table$MaxInHospital / numericPop
 result_table
 ```
 
+```{r anova.lm.func}
+response.var = "Population + Beta + HospitalizationRate + HospitalizedRecoveryRate + NonHospitalizedRecoveryRate + HospitalizationTime + InfectionTime + Population * Beta + Population * HospitalizationRate + Population * HospitalizedRecoveryRate + Population * NonHospitalizedRecoveryRate + Population * HospitalizationTime + Population * InfectionTime + Beta * HospitalizationRate + Beta * HospitalizedRecoveryRate + Beta * NonHospitalizedRecoveryRate + Beta * HospitalizationTime + Beta * InfectionTime + HospitalizationRate* HospitalizedRecoveryRate + HospitalizationRate*NonHospitalizedRecoveryRate + HospitalizationRate*HospitalizationTime + HospitalizationRate*InfectionTime + HospitalizedRecoveryRate * NonHospitalizedRecoveryRate + HospitalizedRecoveryRate * HospitalizedRecoveryRate * HospitalizationTime + HospitalizedRecoveryRate * InfectionTime + NonHospitalizedRecoveryRate * HospitalizationTime + NonHospitalizedRecoveryRate * InfectionTime + HospitalizationTime * InfectionTime"
+
+anova = function(param){
+  form = as.formula(paste(param, response.var, sep = " ~ "))
+  return(aov(form, data = result_table))
+}
+linear = function(param){
+  form = as.formula(paste(param, response.var, sep = " ~ "))
+  return(lm(form, data = result_table))
+}
+
+residual.plot = function(model){
+  residuals = model$residuals
+  par(mfrow = c(1,2))
+  hist(residuals)
+  qqnorm(residuals)
+  qqline(residuals)
+}
+```
+
 #### Response Variable: Total Death Proportion
 
 ##### ANOVA result
 
-```{r}
-# Full model without interaction
-Death.Anova = aov(DeathProportion ~ Population + Beta + HospitalizationRate + HospitalizedRecoveryRate + NonHospitalizedRecoveryRate + HospitalizationTime + InfectionTime, data = result_table) 
+```{r death.anova}
+Death.Anova = anova("DeathProportion")
 summary(Death.Anova)
-
-# Reduced model with interaction between significant variables from full model
-Death.Anova1 = aov(DeathProportion ~ Beta + HospitalizationRate + HospitalizedRecoveryRate + NonHospitalizedRecoveryRate + InfectionTime
-                   + Beta*HospitalizationRate + Beta*HospitalizedRecoveryRate + Beta*NonHospitalizedRecoveryRate + Beta*InfectionTime 
-                   + HospitalizationRate*HospitalizedRecoveryRate + HospitalizationRate*NonHospitalizedRecoveryRate + HospitalizationRate*InfectionTime +
-                   + HospitalizedRecoveryRate*NonHospitalizedRecoveryRate + HospitalizedRecoveryRate*InfectionTime 
-                   + NonHospitalizedRecoveryRate*InfectionTime, 
-                   data = result_table)
-summary(Death.Anova1)
+Death.Lm = linear("DeathProportion")
+summary(Death.Lm)
+residual.plot(Death.Anova)
 ```
 
-```{r}
+##### Main Effects Plot
+
+```{r death.main}
 # Summarize main effects of each significant variable
 avg.Beta = result_table %>% group_by(Beta) %>% summarise(Average.Death.Proportion = mean(DeathProportion))
 avg.HospitalizationRate = result_table %>% group_by(HospitalizationRate) %>% summarise(Average.Death.Proportion = mean(DeathProportion))
@@ -396,7 +375,9 @@ ggplot(avg.all, aes(x = Level, y = Average.Death.Proportion, group = Var)) +
   geom_text(data = ann_text, label = swr("Grand Average", 5), colour = 'blue', size = 2.8)
 ```
 
-```{r}
+##### Interaction Effects Plot
+
+```{r death.interact}
 # Summarize interaction effects by all combinations of significant variables
 DeathSummary = result_table %>% group_by(Beta, HospitalizationRate, HospitalizedRecoveryRate, NonHospitalizedRecoveryRate, InfectionTime) %>% summarise(Average.Death.Proportion = mean(DeathProportion))
 
@@ -433,19 +414,17 @@ ggplot(DeathSummary,
 
 ##### ANOVA result
 
-```{r}
-# Full model without interaction
-Infected.Anova = aov(InfectedProportion ~ Population + Beta + HospitalizationRate + HospitalizedRecoveryRate + NonHospitalizedRecoveryRate + HospitalizationTime + InfectionTime, data = result_table)
+```{r infected.anova}
+Infected.Anova = anova("InfectedProportion")
 summary(Infected.Anova)
-
-# Reduced model with interaction between significant variables from full model
-Infected.Anova1 = aov(InfectedProportion ~ Beta + HospitalizationRate + InfectionTime 
-                      + Beta*HospitalizationRate + Beta*InfectionTime + HospitalizationRate*InfectionTime, 
-                      data = result_table)
-summary(Infected.Anova1)
+Infected.Lm = linear("InfectedProportion")
+summary(Infected.Lm)
+residual.plot(Infected.Anova)
 ```
 
-```{r}
+##### Main Effects Plot
+
+```{r infected.main}
 # Summarize main effects of each significant variable
 avg.Beta = result_table %>% group_by(Beta) %>% summarise(Average.Infected.Proportion = mean(InfectedProportion))
 avg.InfectionTime = result_table %>% group_by(InfectionTime) %>% summarise(Average.Infected.Proportion = mean(InfectedProportion))
@@ -480,7 +459,9 @@ ggplot(avg.all, aes(x = Level, y = Average.Infected.Proportion, group = Var)) +
   geom_text(data = ann_text, label = swr("Grand Average", 5), colour = 'blue', size = 3)
 ```
 
-```{r}
+##### Interaction Effects Plot
+
+```{r infected.interact}
 # Summarize interaction effects by all combinations of significant variables
 InfectedSummary = result_table %>% group_by(Beta, InfectionTime, HospitalizationRate) %>% summarise(Average.Infected.Proportion = mean(InfectedProportion))
 InfectedSummary$InfectionTime = ifelse(InfectedSummary$InfectionTime == "1", "yes", "no")
@@ -505,18 +486,17 @@ ggplot(InfectedSummary,
 
 ##### ANOVA result
 
-```{r}
-NewCase.Anova = aov(MaxCaseProportion ~ Population + Beta + HospitalizationRate + HospitalizedRecoveryRate + NonHospitalizedRecoveryRate + HospitalizationTime + InfectionTime, data = result_table)
-summary(NewCase.Anova)
-
-NewCase.Anova1 = aov(MaxCaseProportion ~ Population + Beta + HospitalizationRate + InfectionTime +
-                       Population*Beta + Population*HospitalizationRate + Population*InfectionTime + 
-                       Beta*HospitalizationRate + Beta*InfectionTime + HospitalizationRate*InfectionTime, 
-                     data = result_table)
-summary(NewCase.Anova1)
+```{r newcase.anova}
+MaxCase.Anova = anova("MaxCaseProportion")
+summary(MaxCase.Anova)
+MaxCase.Lm = linear("MaxCaseProportion")
+summary(MaxCase.Lm)
+residual.plot(MaxCase.Anova)
 ```
 
-```{r}
+##### Main Effects Plot
+
+```{r newcase.main}
 # Summarize main effects of each significant variable
 avg.Population = result_table %>% group_by(Population) %>% summarise(Average.MaxCaseProportion = mean(MaxCaseProportion))
 avg.Beta = result_table %>% group_by(Beta) %>% summarise(Average.MaxCaseProportion = mean(MaxCaseProportion))
@@ -555,7 +535,9 @@ ggplot(avg.all, aes(x = Level, y = Average.MaxCaseProportion, group = Var)) +
   geom_text(data = ann_text, label = swr("Grand Average", 5), colour = 'blue', size = 3)
 ```
 
-```{r}
+##### Interaction Effects Plot
+
+```{r newcase.interact}
 # Summarize interaction effects by all combinations of significant variables
 MaxCaseSummary = result_table %>% group_by(Population, Beta, InfectionTime, HospitalizationRate) %>% summarise(Average.MaxCaseProportion = mean(MaxCaseProportion))
 MaxCaseSummary$InfectionTime = ifelse(MaxCaseSummary$InfectionTime == 1, "With quarantine", "Without quarantine")
@@ -577,19 +559,19 @@ ggplot(MaxCaseSummary,
 
 #### Response Variable: Max Hospitalized Proportion
 
-```{r}
-Hospital.Anova = aov(MaxHospitalProportion ~ Population + Beta + HospitalizationRate + HospitalizedRecoveryRate + NonHospitalizedRecoveryRate + HospitalizationTime + InfectionTime, data = result_table)
-summary(Hospital.Anova)
+##### ANOVA result
 
-Hospital.Anova1 = aov(MaxHospitalProportion ~ Beta + HospitalizationRate + HospitalizationTime + InfectionTime
-                      + Beta*HospitalizationRate + Beta*HospitalizationTime + Beta*InfectionTime
-                      + HospitalizationRate*HospitalizationTime + HospitalizationRate*InfectionTime + HospitalizationTime*InfectionTime, 
-                      data = result_table)
-summary(Hospital.Anova1)
+```{r hospital.anova}
+MaxHospital.Anova = anova("MaxHospitalProportion")
+summary(MaxHospital.Anova)
+MaxHospital.Lm = linear("MaxHospitalProportion")
+summary(MaxHospital.Lm)
+residual.plot(MaxHospital.Anova)
 ```
 
+##### Main Effects Plot
 
-```{r}
+```{r hospital.main}
 # Summarize main effects of each significant variable
 avg.Beta = result_table %>% group_by(Beta) %>% summarise(Average.MaxHospitalProportion = mean(MaxHospitalProportion))
 avg.HospitalizationRate = result_table %>% group_by(HospitalizationRate) %>% summarise(Average.MaxHospitalProportion = mean(MaxHospitalProportion))
@@ -626,7 +608,11 @@ ggplot(avg.all, aes(x = Level, y = Average.MaxHospitalProportion, group = Var)) 
   labs(y = "Average Maximum Daily Hospitalization Proportion", x = "Variable Level") +
   geom_hline(yintercept = mean(result_table$MaxHospitalProportion), linetype='dashed', col = 'blue') + 
   geom_text(data = ann_text, label = swr("Grand Average", 5), colour = 'blue', size = 3)
+```
 
+##### Interaction Effects Plot
+
+```{r hospital.interact}
 # Summarize interaction effects by all combinations of significant variables
 MaxHospitalSummary = result_table %>% group_by(Beta, InfectionTime, HospitalizationRate, HospitalizationTime) %>% summarise(Average.MaxHospitalProportion = mean(MaxHospitalProportion))
 MaxHospitalSummary$InfectionTime = ifelse(MaxHospitalSummary$InfectionTime == 1, "With quarantine", "Without quarantine")
@@ -643,18 +629,4 @@ ggplot(MaxHospitalSummary,
   theme_bw() + 
   labs(y = "Average Maximum Daily Hospitalization Proportion") +
   theme(legend.position="top")
-```
-
-#### Response Variable: Peak Day of Infected
-
-```{r}
-PeakDay.Anova = aov(PeakDayNewCase ~ Population + Beta + HospitalizationRate + HospitalizedRecoveryRate + NonHospitalizedRecoveryRate + HospitalizationTime + InfectionTime, data = result_table)
-summary(PeakDay.Anova)
-```
-
-#### Response Variable: Peak Day of Hospitalization
-
-```{r}
-PeakDayH.Anova = aov(PeakDayHospital ~ Population + Beta + HospitalizationRate + HospitalizedRecoveryRate + NonHospitalizedRecoveryRate + HospitalizationTime + InfectionTime, data = result_table)
-summary(PeakDayH.Anova)
 ```
