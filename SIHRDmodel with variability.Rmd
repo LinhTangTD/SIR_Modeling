@@ -315,7 +315,7 @@ linear = function(param){
 residual.plot = function(model){
   residuals = model$residuals
   par(mfrow = c(1,2))
-  hist(residuals)
+  hist(residuals, breaks = 20)
   qqnorm(residuals)
   qqline(residuals)
 }
@@ -331,6 +331,11 @@ summary(Death.Anova)
 Death.Lm = linear("DeathProportion")
 summary(Death.Lm)
 residual.plot(Death.Anova)
+
+Death.Anova.reduced = aov(DeathProportion ~ Beta + HospitalizationRate + HospitalizedRecoveryRate + NonHospitalizedRecoveryRate + InfectionTime + Beta:HospitalizationRate + Beta:HospitalizedRecoveryRate + Beta:NonHospitalizedRecoveryRate + HospitalizationRate:HospitalizedRecoveryRate + Beta:InfectionTime + HospitalizationRate:HospitalizedRecoveryRate + HospitalizationRate:NonHospitalizedRecoveryRate + HospitalizationRate:InfectionTime + HospitalizedRecoveryRate:InfectionTime + NonHospitalizedRecoveryRate:InfectionTime, data = result_table)
+
+summary(Death.Anova.reduced)
+summary(lm(DeathProportion ~ Beta + HospitalizationRate + HospitalizedRecoveryRate + NonHospitalizedRecoveryRate + InfectionTime + Beta:HospitalizationRate + Beta:HospitalizedRecoveryRate + Beta:NonHospitalizedRecoveryRate + HospitalizationRate:HospitalizedRecoveryRate + Beta:InfectionTime + HospitalizationRate:HospitalizedRecoveryRate + HospitalizationRate:NonHospitalizedRecoveryRate + HospitalizationRate:InfectionTime + HospitalizedRecoveryRate:InfectionTime + NonHospitalizedRecoveryRate:InfectionTime, data = result_table))
 ```
 
 ##### Main Effects Plot
@@ -417,9 +422,14 @@ ggplot(DeathSummary,
 ```{r infected.anova}
 Infected.Anova = anova("InfectedProportion")
 summary(Infected.Anova)
-Infected.Lm = linear("InfectedProportion")
-summary(Infected.Lm)
 residual.plot(Infected.Anova)
+
+Infected.Anova.reduced = aov(InfectedProportion ~ Beta + HospitalizationRate + InfectionTime + Beta:HospitalizationRate + Beta:InfectionTime + HospitalizationRate:InfectionTime, data = result_table)
+
+summary(Infected.Anova.reduced)
+residual.plot(Infected.Anova.reduced)
+
+summary(lm(InfectedProportion ~ Beta + HospitalizationRate + InfectionTime + Beta:HospitalizationRate + Beta:InfectionTime + HospitalizationRate:InfectionTime, data = result_table))
 ```
 
 ##### Main Effects Plot
@@ -489,9 +499,11 @@ ggplot(InfectedSummary,
 ```{r newcase.anova}
 MaxCase.Anova = anova("MaxCaseProportion")
 summary(MaxCase.Anova)
-MaxCase.Lm = linear("MaxCaseProportion")
-summary(MaxCase.Lm)
 residual.plot(MaxCase.Anova)
+
+MaxCase.Anova.reduced = aov(MaxCaseProportion ~ Population + Beta + HospitalizationRate + InfectionTime + Population:Beta + Population:Beta + Population:InfectionTime + Beta:HospitalizationTime + Beta:InfectionTime, data=result_table)
+summary(MaxCase.Anova.reduced)
+summary(lm(MaxCaseProportion ~ Population + Beta + HospitalizationRate + InfectionTime + Population:Beta + Population:Beta + Population:InfectionTime + Beta:HospitalizationTime + Beta:InfectionTime, data = result_table))
 ```
 
 ##### Main Effects Plot
@@ -564,9 +576,11 @@ ggplot(MaxCaseSummary,
 ```{r hospital.anova}
 MaxHospital.Anova = anova("MaxHospitalProportion")
 summary(MaxHospital.Anova)
-MaxHospital.Lm = linear("MaxHospitalProportion")
-summary(MaxHospital.Lm)
 residual.plot(MaxHospital.Anova)
+
+MaxHospital.Anova.reduced = aov(MaxHospitalProportion ~ Beta + HospitalizationRate + HospitalizationTime + InfectionTime + Beta:HospitalizationRate + Beta:HospitalizationTime + Beta:InfectionTime + HospitalizationRate:HospitalizationTime + HospitalizationRate:InfectionTime, data = result_table)
+summary(MaxHospital.Anova.reduced)
+summary(lm(MaxHospitalProportion ~ Beta + HospitalizationRate + HospitalizationTime + InfectionTime + Beta:HospitalizationRate + Beta:HospitalizationTime + Beta:InfectionTime + HospitalizationRate:HospitalizationTime + HospitalizationRate:InfectionTime, data = result_table))
 ```
 
 ##### Main Effects Plot
