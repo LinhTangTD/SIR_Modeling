@@ -1,0 +1,593 @@
+---
+title: "Infectious Disease Modeling"
+author: "Linh Tang, Britney He, Bowen Mince"
+date: "12/11/2020"
+output: 
+  html_notebook:
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+library(dplyr)
+library(ggplot2)
+```
+
+### 1. Building Model
+
+### Model Functions
+
+```{r func}
+# Simulate Data
+model.data = function(N, beta, I.0, p, epsilon, theta, gamma, TimeH, TimeNH){
+  I.rate = beta/N
+  psi = 1/TimeH
+  lambda = 1/TimeNH
+  curr.day = 0
+  S = p * N - I.0
+  NS.0 = N - S - I.0
+  NS = NS.0
+  NewInfected = I.0
+  Total.Hospital = 0
+  Total.NonHospital = 0
+  Total.Infected = NewInfected + Total.Hospital + Total.NonHospital
+  Total.Infective = NewInfected + Total.NonHospital
+  Hospital.Recovered = 0
+  NonHospital.Recovered = 0
+  Hospital.Dead = 0
+  NonHospital.Dead = 0
+  Total.Recovered = Hospital.Recovered + NonHospital.Recovered
+  Total.Dead = Hospital.Dead + NonHospital.Dead
+  Pop = S + NS + Total.Infected + Total.Dead
+  Leaving.Hospital = 0
+  Leaving.NonHospital = 0
+  Recovered.Hospital.today = 0
+  Recovered.NonHospital.today = 0
+  Entering.Hospital = 0
+  
+  # If you want a full table like the excel, uncomment all lines in the df below
+  df = data_frame(Day = curr.day,
+                  Susceptible = S,
+                  Non.Susceptible = NS,
+                  Daily.New.Case = NewInfected,
+                  Total.In.Hospital = Total.Hospital,
+                  # Total.NonHospital = Total.NonHospital,
+                  Infected = Total.Infected,
+                  # Total.Infective = Total.Infective,
+                  # Recovered.In.Hospital = Hospital.Recovered,
+                  # Dead.In.Hospital = Hospital.Dead,
+                  Total.Recovered = Total.Recovered,
+                  Total.Dead = Total.Dead)
+  
+  # Watch the disease until it ends (daily new case = 0) or at max 200 days
+  while(Total.Infected > 0 & curr.day < 1000){
+    curr.day = curr.day + 1
+    
+    # Number of individuals recovered from the infected in hospital (previous day)
+    # First need to see how many are leaving the hospital
+    Leaving.Hospital = rbinom(1, Total.Hospital, psi)
+    # Then how many of those recovered
+    Recovered.Hospital.today = rbinom(1, Leaving.Hospital, theta)
+    Hospital.Recovered = Hospital.Recovered + Recovered.Hospital.today
+    Hospital.Dead = Hospital.Dead + Leaving.Hospital - Recovered.Hospital.today
+    
+    # Number of individuals dead from the infected in hospital (previous day)
+    # First need to see how many not in hospital are getting over disease
+    NonHospital.leaving = rbinom(1, Total.NonHospital, lambda)
+    # How many of those are recovering
+    Recovered.NonHospital.today = rbinom(1, NonHospital.leaving, gamma)
+    NonHospital.Recovered = NonHospital.Recovered + Recovered.NonHospital.today
+    NonHospital.Dead = NonHospital.Dead + NonHospital.leaving - Recovered.NonHospital.today
+    
+    # Total number of recovered or dead so far (cumulative)
+    Total.Recovered = Hospital.Recovered + NonHospital.Recovered
+    Total.Dead = Hospital.Dead + NonHospital.Dead
+    
+    # Number of individuals hospitalized from the infected in the previous day
+    Entering.Hospital = rbinom(1, NewInfected, epsilon)
+    Total.Hospital =  Entering.Hospital + Total.Hospital - Leaving.Hospital
+    Total.NonHospital = NewInfected + Total.NonHospital - Entering.Hospital - NonHospital.leaving
+    
+    # Newly infected case today and total actively infected so far
+    NewInfected = min(S, rbinom(1, S * Total.Infective, I.rate))
+    Total.Infected = NewInfected + Total.Hospital + Total.NonHospital
+    
+    # Susceptible population left
+    S = S - NewInfected
+    
+    # Current non-susceptible group
+    NS = NS.0 + Total.Recovered
+    
+    # Infective group that can spread the disease the next day
+    Total.Infective = NewInfected + Total.NonHospital
+    
+    # Confirm population
+    Pop = S + NS + Total.Infected + Total.Dead
+    
+    # If you want a full table like the excel, uncomment this
+    # data = c(curr.day, S, NS, NewInfected, Total.Hospital, Total.NonHospital, Total.Infected, Total.Infective, Hospital.Recovered, Hospital.Dead, Total.Recovered, Total.Dead, Pop)
+    data = c(curr.day, S, NS, NewInfected, Total.Hospital, Total.Infected, Total.Recovered, Total.Dead)
+    df = rbind(df, data)
+  }
+  return(df)
+}
+# Plot out the evolution over time
+model.plot = function(data){
+  p = ggplot(data  = data, aes(x = Day)) +
+        geom_line(aes(y = Susceptible, color = "Susceptible")) +
+        geom_line(aes(y = Daily.New.Case, color = "Daily New Case")) +
+        geom_line(aes(y = Infected, color = "Infected")) +
+        geom_line(aes(y = Total.In.Hospital, color = "Currently In Hospital")) +
+        geom_line(aes(y = Total.Recovered, color = "Total Recoverd")) +
+        geom_line(aes(y = Total.Dead, color = "Total Dead")) +
+        scale_color_discrete(name = "Compartment") +
+        labs(y = "Population", title = "SIHRD Model") + 
+        theme_minimal()
+  return(p)
+}
+# Extract info from the data
+model.info = function(data){
+  Last.Day = nrow(data)
+  Status = ifelse(data[Last.Day,]$Daily.New.Case == 0, "Ended", "Going")
+  Total.Death = data[Last.Day,]$Total.Dead
+  Total.Infected = sum(data$Daily.New.Case)
+  Max.New.Case = max(data$Daily.New.Case)
+  Peak.Day.New.Case = data[data$Daily.New.Case == Max.New.Case,]$Day
+  Max.In.Hospital = max(data$Total.In.Hospital)
+  Peak.Day.Hospital= data[data$Total.In.Hospital == Max.In.Hospital,]$Day
+  info = c(Last.Day, Status, Total.Death, Total.Infected, Max.New.Case, Peak.Day.New.Case, Max.In.Hospital, Peak.Day.Hospital)
+  return(info)
+}
+# Confirm the model by calculating that all compartments sum to population at any day
+model.confirm = function(data){
+  data$Pop = data$S + data$NS + data$Total.Infected + data$Total.Dead
+  return(data)
+}
+# Combine all functions
+SIHRD.model = function(N, beta, I.0, p, epsilon, theta, gamma, TimeH, TimeNH){
+  param = c(N, beta, epsilon, theta, gamma, TimeH, TimeNH)
+  data = model.data(N, beta, I.0, p, epsilon, theta, gamma, TimeH, TimeNH)
+  plot = model.plot(data)
+  result_info = model.info(data)
+  info = c(param, result_info)
+  return(list(data,plot,info))
+}
+# Helper function for string wrapping in facet plots, default is 12 characters
+swr = function(string, nwrap=12) {
+  paste(strwrap(string, width=nwrap), collapse="\n")
+}
+swr = Vectorize(swr)
+```
+
+### Example
+
+Below is an example of a model on 10000 population with a tranmission rate = 2/10000, 5 initial infected inidividual, 50% susceptible rate, 5% hospitalization rate, recovery rate for both hospitalized and non-hospitalized individuals are 90%, time spend in hospital is 10 days, and strict quarantine is applied.
+
+```{r example}
+test.model = SIHRD.model(10000, 2, 5, 0.5, 0.05, 0.9, 0.9, 10, 1)
+# data
+test.model[[2]]
+# graph
+test.model[[2]]
+# summary
+model.summary = cbind(c("Population", "Beta", "HospitalizationRate", "HospitalizedRecoveryRate", "NonHospitalizedRecoveryRate", "HospitalizationTime", "InfectionTime"), test.model[[3]][1:7], c("LastDay", "Status", "TotalDeath", "TotalInfected", "MaxNewCase", "PeakDayNewCase", "MaxInHospital", "PeakDayHospital"), test.model[[3]][8:15])
+model.summary = as.data.frame(model.summary)
+colnames(model.summary) = c("Parameter", "Value", "Result", "Value")
+model.summary
+```
+
+# Running 10 simulations to show randomness and variability
+
+```{r 10sims}
+# 10 simulations of the above model
+model.rep.plot = function(N, beta, I.0, p, epsilon, theta, gamma, TimeH, TimeNH, reps = 10){
+  line.plot = function(data){
+    size = 0.2
+    list (#(geom_line(data = data, aes(x = Day, y = Infected, color = "Daily Infected"), size = size),
+         #geom_area(data = data, aes(x = Day, y = Infected), fill = "coral", alpha = 0.05),
+         geom_line(data = data, aes(x = Day, y = Total.Dead, color = "Total Dead"), size = size),
+         #geom_line(data = data, aes(x = Day, y = Susceptible, color = "Susceptible"), size = size),
+         #geom_line(data = data, aes(x = Day, y = Total.Recovered, color = "Total Recoverd"), size = size),
+         geom_line(data = data, aes(x = Day, y = Total.In.Hospital, color = "Daily Hospitalized"), size = size),
+         geom_line(data = data, aes(x = Day, y = Daily.New.Case, color = "Daily New Case"), size = size),
+         scale_color_manual(values = c("Daily Infected" = "red", 
+                                      "Total Dead"= "black", 
+                                      "Susceptible" = "darkorange", 
+                                      "Total Recoverd" = "green", 
+                                      "Daily Hospitalized" = "red", 
+                                      "Daily New Case"= "blue2"))
+    ) 
+  }
+  if(TimeNH == 1){
+    title = "SIHRD Model with quarantine enforced"
+  } else {
+    title = "SIHRD Model without quarantine enforced"
+  }
+  plot = ggplot() + labs(y = "Population", title = title, color = "Compartment") + theme_minimal() + xlim(0, 50) + ylim(0, 2000)
+  for(i in 1:reps){
+    data = model.data(N, beta, I.0, p, epsilon, theta, gamma, TimeH, TimeNH)
+    plot = plot + line.plot(data)
+  }
+  plot
+  return(plot)
+}
+# SIHRD model with 10 reps and all parameters set 
+# at lowest level under 2 conditions: with and without quarantine
+a = model.rep.plot(10000, 2, 5, 0.5, 0.05, 0.9, 0.9, 10, 1)
+a + annotate(geom = "curve", xend = 30, yend = 900, x = 20, y = 400, curvature = -.2, arrow = arrow(length = unit(1, "mm")), size=0.7, alpha=0.6) +
+  annotate(geom = "text", x = 31, y = 900, label = "Total Dead", hjust = "left") + 
+  
+  annotate(geom = "curve", xend = 24, yend = 1150, x = 13.5, y = 550, curvature = -.2, arrow = arrow(length = unit(2, "mm")), color = "blue", size=0.7, alpha=0.6) +
+  annotate(geom = "text", x = 25, y = 1150, label = "Max Daily New Cases", hjust = "left", color = "blue") + 
+  
+  #annotate(geom = "curve", xend = 30, yend = 1300, x = 15, y = 680, curvature = -.2, arrow = arrow(length = unit(2, "mm")), color = "red", size=0.7, alpha=0.6) + 
+  #annotate(geom = "text", x = 31, y = 1400, label = "Total Infected", hjust = "left", color = "red") +
+  
+  annotate(geom = "curve", xend = 30, yend = 650, x = 18, y = 110, curvature = -.2, arrow = arrow(length = unit(2, "mm")), color = "red", size=0.7, alpha=0.6) + 
+  annotate(geom = "text", x = 31, y = 650, label = "Max Daily Hospitalized", hjust = "left", color = "red") +  theme(legend.position="bottom")
+b = model.rep.plot(10000, 2, 5, 0.5, 0.05, 0.9, 0.9, 10, 5)
+b + annotate(geom = "curve", xend = 39, yend = 700, x = 30, y = 520, curvature = -.1, arrow = arrow(length = unit(1, "mm")), size=0.7, alpha=0.6) +
+  annotate(geom = "text", x = 40, y = 700, label = "Total Dead", hjust = "left") + 
+  
+  annotate(geom = "curve", xend = 24, yend = 1500, x = 11, y = 1070, curvature = -.2, arrow = arrow(length = unit(2, "mm")), color = "blue", size=0.7, alpha=0.6) +
+  annotate(geom = "text", x = 25, y = 1500, label = "Max Daily New Cases", hjust = "left", color = "blue") + 
+  
+  #annotate(geom = "curve", xend = 30, yend = 1500, x = 16, y = 1000, curvature = -.2, arrow = arrow(length = unit(2, "mm")), color = "red", size=0.7, alpha=0.6) + 
+  #annotate(geom = "text", x = 31, y = 1600, label = "Total Infected", hjust = "left", color = "red") +
+  
+  annotate(geom = "curve", xend = 30, yend = 900, x = 14, y = 230, curvature = -.2, arrow = arrow(length = unit(2, "mm")), color = "#FFC33", size=0.7, alpha=0.6) + 
+  annotate(geom = "text", x = 31, y = 900, label = "Max Daily Hospitalized", hjust = "left", color = "red")  +  theme(legend.position="bottom")
+```
+
+## 2. Factorial Experiment Design 
+
+```{r fact.exp}
+# Factorial Experiment
+I.0 = 5
+S.rate = 0.5
+# List of Explanatory Variables:
+Pop.Lst = c(10000, 100000, 1000000)
+Beta.Lst = c(2,4)
+Hrate.Lst = c(0.05, 0.1, 0.15)
+RrateH.Lst = c(0.9, 0.95)
+RrateNH.Lst = c(0.9, 0.95)
+TimeH.Lst = c(10, 15)
+TimeNH.Lst = c(1, 5)
+#Pop.Lst, Beta.Lst, Hrate.Lst, RrateH.Lst, RrateNH.Lst, TimeH.Lst, TimeNH.Lst
+result_table = data.frame()
+# Run 10 simulations of every 288 combinations
+sims = 10
+for(i in 1:sims){
+  for(N in Pop.Lst){
+    for(b in Beta.Lst){
+      for(hr in Hrate.Lst){
+        for(rrh in RrateH.Lst){
+          for(rrnh in RrateNH.Lst){
+            for(th in TimeH.Lst){
+              for(tnh in TimeNH.Lst){
+                model = SIHRD.model(N, b, I.0, S.rate, hr, rrh, rrnh, th, tnh)
+                result_table = rbind(result_table, model[[3]], stringsAsFactors = FALSE)
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+colnames(result_table) = c("Population", "Beta", "HospitalizationRate", "HospitalizedRecoveryRate", "NonHospitalizedRecoveryRate", "HospitalizationTime", "InfectionTime", "LastDay", "Status", "TotalDeath", "TotalInfected", "MaxNewCase", "PeakDayNewCase", "MaxInHospital", "PeakDayHospital")
+result_table[1:7] = as.data.frame(sapply(result_table[1:7], as.numeric))
+result_table[1:7] = format(result_table[1:7], scientific = FALSE)
+result_table[c(1:7,9)] = as.data.frame(sapply(result_table[c(1:7,9)], as.factor))
+result_table[c(8,10:15)] = as.data.frame(sapply(result_table[c(8,10:15)], as.numeric))
+numericPop = as.numeric(as.character(result_table$Population))
+result_table$DeathProportion = result_table$TotalDeath / numericPop
+result_table$InfectedProportion = result_table$TotalInfected / numericPop
+result_table$MaxCaseProportion = result_table$MaxNewCase / numericPop
+result_table$MaxHospitalProportion = result_table$MaxInHospital / numericPop
+result_table
+```
+
+```{r anova.lm.func}
+response.var = "Population + Beta + HospitalizationRate + HospitalizedRecoveryRate + NonHospitalizedRecoveryRate + HospitalizationTime + InfectionTime + Population * Beta + Population * HospitalizationRate + Population * HospitalizedRecoveryRate + Population * NonHospitalizedRecoveryRate + Population * HospitalizationTime + Population * InfectionTime + Beta * HospitalizationRate + Beta * HospitalizedRecoveryRate + Beta * NonHospitalizedRecoveryRate + Beta * HospitalizationTime + Beta * InfectionTime + HospitalizationRate* HospitalizedRecoveryRate + HospitalizationRate*NonHospitalizedRecoveryRate + HospitalizationRate*HospitalizationTime + HospitalizationRate*InfectionTime + HospitalizedRecoveryRate * NonHospitalizedRecoveryRate + HospitalizedRecoveryRate * HospitalizedRecoveryRate * HospitalizationTime + HospitalizedRecoveryRate * InfectionTime + NonHospitalizedRecoveryRate * HospitalizationTime + NonHospitalizedRecoveryRate * InfectionTime + HospitalizationTime * InfectionTime"
+anova = function(param){
+  form = as.formula(paste(param, response.var, sep = " ~ "))
+  return(aov(form, data = result_table))
+}
+linear = function(param){
+  form = as.formula(paste(param, response.var, sep = " ~ "))
+  return(lm(form, data = result_table))
+}
+residual.plot = function(model){
+  residuals = model$residuals
+  par(mfrow = c(1,2))
+  hist(residuals, breaks = 20)
+  qqnorm(residuals)
+  qqline(residuals)
+}
+```
+
+#### Response Variable: Total Death Proportion
+
+##### ANOVA result
+
+```{r death.anova}
+Death.Anova = anova("DeathProportion")
+summary(Death.Anova)
+Death.Lm = linear("DeathProportion")
+summary(Death.Lm)
+residual.plot(Death.Anova)
+Death.Anova.reduced = aov(DeathProportion ~ Beta + HospitalizationRate + HospitalizedRecoveryRate + NonHospitalizedRecoveryRate + InfectionTime + Beta:HospitalizationRate + Beta:HospitalizedRecoveryRate + Beta:NonHospitalizedRecoveryRate + HospitalizationRate:HospitalizedRecoveryRate + Beta:InfectionTime + HospitalizationRate:HospitalizedRecoveryRate + HospitalizationRate:NonHospitalizedRecoveryRate + HospitalizationRate:InfectionTime + HospitalizedRecoveryRate:InfectionTime + NonHospitalizedRecoveryRate:InfectionTime, data = result_table)
+summary(Death.Anova.reduced)
+summary(lm(DeathProportion ~ Beta + HospitalizationRate + HospitalizedRecoveryRate + NonHospitalizedRecoveryRate + InfectionTime + Beta:HospitalizationRate + Beta:HospitalizedRecoveryRate + Beta:NonHospitalizedRecoveryRate + HospitalizationRate:HospitalizedRecoveryRate + Beta:InfectionTime + HospitalizationRate:HospitalizedRecoveryRate + HospitalizationRate:NonHospitalizedRecoveryRate + HospitalizationRate:InfectionTime + HospitalizedRecoveryRate:InfectionTime + NonHospitalizedRecoveryRate:InfectionTime, data = result_table))
+```
+
+##### Main Effects Plot
+
+```{r death.main}
+# Summarize main effects of each significant variable
+avg.Beta = result_table %>% group_by(Beta) %>% summarise(Average.Death.Proportion = mean(DeathProportion))
+avg.HospitalizationRate = result_table %>% group_by(HospitalizationRate) %>% summarise(Average.Death.Proportion = mean(DeathProportion))
+avg.HospitalizedRecoveryRate = result_table %>% group_by(HospitalizedRecoveryRate) %>% summarise(Average.Death.Proportion = mean(DeathProportion))
+avg.NonHospitalizedRecoveryRate = result_table %>% group_by(NonHospitalizedRecoveryRate) %>% summarise(Average.Death.Proportion = mean(DeathProportion))
+avg.InfectionTime = result_table %>% group_by(InfectionTime) %>% summarise(Average.Death.Proportion = mean(DeathProportion))
+avg.Beta$Var = "Beta"
+names(avg.Beta) = c("Level", "Average.Death.Proportion", "Var")
+avg.HospitalizationRate$Var = "Hospitalization Rate"
+names(avg.HospitalizationRate) = c("Level", "Average.Death.Proportion", "Var")
+avg.HospitalizedRecoveryRate$Var = "Hospitalized Recovery Rate"
+names(avg.HospitalizedRecoveryRate) = c("Level", "Average.Death.Proportion", "Var")
+avg.NonHospitalizedRecoveryRate$Var = "Non-Hospitalized Recovery Rate"
+names(avg.NonHospitalizedRecoveryRate) = c("Level", "Average.Death.Proportion", "Var")
+avg.InfectionTime$Var = "Quarantine"
+names(avg.InfectionTime) = c("Level", "Average.Death.Proportion", "Var")
+avg.InfectionTime$Level = ifelse(avg.InfectionTime$Level == "1", "yes", "no")
+avg.all = rbind(avg.Beta, avg.HospitalizationRate, avg.InfectionTime, avg.HospitalizedRecoveryRate, avg.NonHospitalizedRecoveryRate)
+# Main Effect Plots
+ann_text <- tribble(
+  ~Var, ~Average.Death.Proportion, ~Level,
+  #--|--|--
+  "Beta", 0.037, "2")
+avg.all$Var = swr(avg.all$Var, 20)
+ggplot(avg.all, aes(x = Level, y = Average.Death.Proportion, group = Var)) + 
+  facet_grid(cols = vars(Var), scales = "free_x") + 
+  theme_bw() + 
+  labs(y = "Average Total Death Proportion", x = "Variable Level") + 
+  geom_hline(yintercept = mean(result_table$DeathProportion), linetype='dashed', col = 'blue') + geom_line() +
+  geom_point() + 
+  geom_text(data = ann_text, label = swr("Grand Average", 5), colour = 'blue', size = 2.8)
+```
+
+##### Interaction Effects Plot
+
+```{r death.interact}
+# Summarize interaction effects by all combinations of significant variables
+DeathSummary = result_table %>% group_by(Beta, HospitalizationRate, HospitalizedRecoveryRate, NonHospitalizedRecoveryRate, InfectionTime) %>% summarise(Average.Death.Proportion = mean(DeathProportion))
+# New facet label names for variables
+InfectionTime.labs <- c("With quarantine", "Without quarantine")
+names(InfectionTime.labs) <- c("1", "5")
+Beta.labs <- c("Beta = 2", "Beta = 4")
+names(Beta.labs) <- c("2", "4")
+HospitalizationRate.labs <- c("5% Hospitalization", "10% Hospitalization", "15% Hospitalization")
+names(HospitalizationRate.labs) <- c("0.05", "0.10", "0.15")
+DeathSummary$InfectionTime = ifelse(DeathSummary$InfectionTime == 1, "With quarantine", "Without quarantine")
+DeathSummary$InfectionTime = swr(DeathSummary$InfectionTime)
+# Interaction Plot
+ggplot(DeathSummary, 
+       aes(x = NonHospitalizedRecoveryRate, 
+           y = Average.Death.Proportion,
+           color = HospitalizedRecoveryRate,
+           group = HospitalizedRecoveryRate)) +
+  geom_point() + 
+  geom_line() +
+  facet_grid(InfectionTime ~ Beta + HospitalizationRate, labeller = labeller(Beta = Beta.labs, HospitalizationRate = swr(HospitalizationRate.labs))) +
+  # geom_point(aes(color = HospitalizedRecoveryRate)) + 
+  theme_bw() + 
+  labs(y = "Average Total Death Proportion", 
+       x = "Non-Hospitalized Recovery Rate",
+       color = "Hospitalized Recovery Rate") +
+  theme(legend.position="top")
+```
+
+#### Response Variable: Total Infected Proportion
+
+##### ANOVA result
+
+```{r infected.anova}
+Infected.Anova = anova("InfectedProportion")
+summary(Infected.Anova)
+residual.plot(Infected.Anova)
+Infected.Anova.reduced = aov(InfectedProportion ~ Beta + HospitalizationRate + InfectionTime + Beta:HospitalizationRate + Beta:InfectionTime + HospitalizationRate:InfectionTime, data = result_table)
+summary(Infected.Anova.reduced)
+residual.plot(Infected.Anova.reduced)
+summary(lm(InfectedProportion ~ Beta + HospitalizationRate + InfectionTime + Beta:HospitalizationRate + Beta:InfectionTime + HospitalizationRate:InfectionTime, data = result_table))
+```
+
+##### Main Effects Plot
+
+```{r infected.main}
+# Summarize main effects of each significant variable
+avg.Beta = result_table %>% group_by(Beta) %>% summarise(Average.Infected.Proportion = mean(InfectedProportion))
+avg.InfectionTime = result_table %>% group_by(InfectionTime) %>% summarise(Average.Infected.Proportion = mean(InfectedProportion))
+avg.HospitalizationRate = result_table %>% group_by(HospitalizationRate) %>% summarise(Average.Infected.Proportion = mean(InfectedProportion))
+avg.Beta$Var = "Beta"
+names(avg.Beta) = c("Level", "Average.Infected.Proportion", "Var")
+avg.HospitalizationRate$Var = "Hospitalization Rate"
+names(avg.HospitalizationRate) = c("Level", "Average.Infected.Proportion", "Var")
+avg.InfectionTime$Var = "Quarantine"
+names(avg.InfectionTime) = c("Level", "Average.Infected.Proportion", "Var")
+avg.InfectionTime$Level = ifelse(avg.InfectionTime$Level == "1", "yes", "no")
+avg.all = rbind(avg.Beta, avg.HospitalizationRate, avg.InfectionTime)
+avg.all$Var = swr(avg.all$Var, 20)
+# Main Effect Plots
+ann_text <- tribble(
+  ~Var, ~Average.Infected.Proportion, ~Level,
+  #--|--|--
+  "Beta", mean(result_table$InfectedProportion) + 0.004, "2")
+ggplot(avg.all, aes(x = Level, y = Average.Infected.Proportion, group = Var)) + 
+  facet_grid(cols = vars(Var), scales = "free_x") + 
+  geom_line() +
+  geom_point() + 
+  theme_bw() + 
+  labs(y = "Average Total Infected Proportion", x = "Variable Level") +
+  geom_hline(yintercept = mean(result_table$InfectedProportion), linetype='dashed', col = 'blue') + 
+  geom_text(data = ann_text, label = swr("Grand Average", 5), colour = 'blue', size = 3)
+```
+
+##### Interaction Effects Plot
+
+```{r infected.interact}
+# Summarize interaction effects by all combinations of significant variables
+InfectedSummary = result_table %>% group_by(Beta, InfectionTime, HospitalizationRate) %>% summarise(Average.Infected.Proportion = mean(InfectedProportion))
+InfectedSummary$InfectionTime = ifelse(InfectedSummary$InfectionTime == "1", "yes", "no")
+InfectedSummary$InfectionTime = factor(InfectedSummary$InfectionTime, levels = c("yes", "no"), ordered = TRUE )
+# Interaction Plot
+ggplot(InfectedSummary, 
+       aes(x = InfectionTime, 
+           y = Average.Infected.Proportion, 
+           group = Beta,
+           color = Beta)) + 
+  geom_line() +
+  geom_point() + 
+  facet_grid(~ HospitalizationRate, labeller = labeller(HospitalizationRate = HospitalizationRate.labs)) +
+  theme_bw() + 
+  labs(y = "Average Total Infected Proportion", 
+       x = "Quarantine") +
+  theme(legend.position="top")
+```
+
+#### Response Variable: Maximum New Case Proportion
+
+##### ANOVA result
+
+```{r newcase.anova}
+MaxCase.Anova = anova("MaxCaseProportion")
+summary(MaxCase.Anova)
+residual.plot(MaxCase.Anova)
+MaxCase.Anova.reduced = aov(MaxCaseProportion ~ Population + Beta + HospitalizationRate + InfectionTime + Population:Beta + Population:Beta + Population:InfectionTime + Beta:HospitalizationTime + Beta:InfectionTime, data=result_table)
+summary(MaxCase.Anova.reduced)
+summary(lm(MaxCaseProportion ~ Population + Beta + HospitalizationRate + InfectionTime + Population:Beta + Population:Beta + Population:InfectionTime + Beta:HospitalizationTime + Beta:InfectionTime, data = result_table))
+```
+
+##### Main Effects Plot
+
+```{r newcase.main}
+# Summarize main effects of each significant variable
+avg.Population = result_table %>% group_by(Population) %>% summarise(Average.MaxCaseProportion = mean(MaxCaseProportion))
+avg.Beta = result_table %>% group_by(Beta) %>% summarise(Average.MaxCaseProportion = mean(MaxCaseProportion))
+avg.InfectionTime = result_table %>% group_by(InfectionTime) %>% summarise(Average.MaxCaseProportion = mean(MaxCaseProportion))
+avg.HospitalizationRate = result_table %>% group_by(HospitalizationRate) %>% summarise(Average.MaxCaseProportion = mean(MaxCaseProportion))
+avg.Population$Var = "Population"
+names(avg.Population) = c("Level", "Average.MaxCaseProportion", "Var")
+avg.Beta$Var = "Beta"
+names(avg.Beta) = c("Level", "Average.MaxCaseProportion", "Var")
+avg.HospitalizationRate$Var = "Hospitalization Rate"
+names(avg.HospitalizationRate) = c("Level", "Average.MaxCaseProportion", "Var")
+avg.InfectionTime$Var = "Quarantine"
+names(avg.InfectionTime) = c("Level", "Average.MaxCaseProportion", "Var")
+avg.InfectionTime$Level = ifelse(avg.InfectionTime$Level == "1", "yes", "no")
+avg.all = rbind(avg.Population, avg.Beta, avg.HospitalizationRate, avg.InfectionTime)
+avg.all$Var = swr(avg.all$Var, 20)
+# Main Effect Plots
+ann_text <- tribble(
+  ~Var, ~Average.MaxCaseProportion, ~Level,
+  #--|--|--
+  "Beta", mean(result_table$MaxCaseProportion) + 0.007, "2")
+ggplot(avg.all, aes(x = Level, y = Average.MaxCaseProportion, group = Var)) + 
+  facet_grid(cols = vars(Var), scales = "free_x") + 
+  geom_line() +
+  geom_point() + 
+  theme_bw() + 
+  labs(y = "Average Maximum Daily New Case Proportion", x = "Variable Level") +
+  geom_hline(yintercept = mean(result_table$MaxCaseProportion), linetype='dashed', col = 'blue') + 
+  geom_text(data = ann_text, label = swr("Grand Average", 5), colour = 'blue', size = 3)
+```
+
+##### Interaction Effects Plot
+
+```{r newcase.interact}
+# Summarize interaction effects by all combinations of significant variables
+MaxCaseSummary = result_table %>% group_by(Population, Beta, InfectionTime, HospitalizationRate) %>% summarise(Average.MaxCaseProportion = mean(MaxCaseProportion))
+MaxCaseSummary$InfectionTime = ifelse(MaxCaseSummary$InfectionTime == 1, "With quarantine", "Without quarantine")
+# MaxCaseSummary$InfectionTime = factor(MaxCaseSummary$InfectionTime, levels = c("yes", "no"), ordered = TRUE )
+# Interaction Plot
+ggplot(MaxCaseSummary, 
+       aes(x = Population, 
+           y = Average.MaxCaseProportion, 
+           group = Beta,
+           color = Beta)) + 
+  geom_line() +
+  geom_point() + 
+  facet_grid(InfectionTime ~ HospitalizationRate, labeller = labeller(HospitalizationRate = HospitalizationRate.labs)) +
+  theme_bw() + 
+  labs(y = "Average Maximum Daily New Case Proportion") +
+  theme(legend.position="top")
+```
+
+#### Response Variable: Max Hospitalized Proportion
+
+##### ANOVA result
+
+```{r hospital.anova}
+MaxHospital.Anova = anova("MaxHospitalProportion")
+summary(MaxHospital.Anova)
+residual.plot(MaxHospital.Anova)
+MaxHospital.Anova.reduced = aov(MaxHospitalProportion ~ Beta + HospitalizationRate + HospitalizationTime + InfectionTime + Beta:HospitalizationRate + Beta:HospitalizationTime + Beta:InfectionTime + HospitalizationRate:HospitalizationTime + HospitalizationRate:InfectionTime, data = result_table)
+summary(MaxHospital.Anova.reduced)
+summary(lm(MaxHospitalProportion ~ Beta + HospitalizationRate + HospitalizationTime + InfectionTime + Beta:HospitalizationRate + Beta:HospitalizationTime + Beta:InfectionTime + HospitalizationRate:HospitalizationTime + HospitalizationRate:InfectionTime, data = result_table))
+```
+
+##### Main Effects Plot
+
+```{r hospital.main}
+# Summarize main effects of each significant variable
+avg.Beta = result_table %>% group_by(Beta) %>% summarise(Average.MaxHospitalProportion = mean(MaxHospitalProportion))
+avg.HospitalizationRate = result_table %>% group_by(HospitalizationRate) %>% summarise(Average.MaxHospitalProportion = mean(MaxHospitalProportion))
+avg.HospitalizationTime = result_table %>% group_by(HospitalizationTime) %>% summarise(Average.MaxHospitalProportion = mean(MaxHospitalProportion))
+avg.InfectionTime = result_table %>% group_by(InfectionTime) %>% summarise(Average.MaxHospitalProportion = mean(MaxHospitalProportion))
+avg.Beta$Var = "Beta"
+names(avg.Beta) = c("Level", "Average.MaxHospitalProportion", "Var")
+avg.HospitalizationRate$Var = "Hospitalization Rate"
+names(avg.HospitalizationRate) = c("Level", "Average.MaxHospitalProportion", "Var")
+avg.HospitalizationTime$Var = "Hospitalization Time (days)"
+names(avg.HospitalizationTime) = c("Level", "Average.MaxHospitalProportion", "Var")
+avg.InfectionTime$Var = "Quarantine"
+names(avg.InfectionTime) = c("Level", "Average.MaxHospitalProportion", "Var")
+avg.InfectionTime$Level = ifelse(avg.InfectionTime$Level == "1", "yes", "no")
+avg.all = rbind(avg.Beta, avg.HospitalizationRate, avg.InfectionTime, avg.HospitalizationTime)
+avg.all$Var = swr(avg.all$Var, 20)
+# Main Effect Plots
+ann_text <- tribble(
+  ~Var, ~Average.MaxHospitalProportion, ~Level,
+  #--|--|--
+  "Beta", mean(result_table$MaxHospitalProportion) + 0.003, "2")
+ggplot(avg.all, aes(x = Level, y = Average.MaxHospitalProportion, group = Var)) + 
+  facet_grid(cols = vars(Var), scales = "free_x") + 
+  geom_line() +
+  geom_point() + 
+  theme_bw() + 
+  labs(y = "Average Maximum Daily Hospitalization Proportion", x = "Variable Level") +
+  geom_hline(yintercept = mean(result_table$MaxHospitalProportion), linetype='dashed', col = 'blue') + 
+  geom_text(data = ann_text, label = swr("Grand Average", 5), colour = 'blue', size = 3)
+```
+
+##### Interaction Effects Plot
+
+```{r hospital.interact}
+# Summarize interaction effects by all combinations of significant variables
+MaxHospitalSummary = result_table %>% group_by(Beta, InfectionTime, HospitalizationRate, HospitalizationTime) %>% summarise(Average.MaxHospitalProportion = mean(MaxHospitalProportion))
+MaxHospitalSummary$InfectionTime = ifelse(MaxHospitalSummary$InfectionTime == 1, "With quarantine", "Without quarantine")
+# Interaction Plot
+ggplot(MaxHospitalSummary, 
+       aes(x = HospitalizationTime, 
+           y = Average.MaxHospitalProportion, 
+           group = Beta,
+           color = Beta)) + 
+  geom_line() +
+  geom_point() + 
+  facet_grid(InfectionTime ~ HospitalizationRate, labeller = labeller(HospitalizationRate = HospitalizationRate.labs)) +
+  theme_bw() + 
+  labs(y = "Average Maximum Daily Hospitalization Proportion") +
+  theme(legend.position="top")
+```
+
