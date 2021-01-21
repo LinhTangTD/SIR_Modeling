@@ -184,23 +184,29 @@ model.summary
 # Running 10 simulations to show randomness and variability
 
 ```{r 10sims}
+infected_col = "#99CCFF"
+dead_col = "#FFCC00"
+hospital_col = "#FF6600"
+newcase_col = "#003399" 
+
 # 10 simulations of the above model
 model.rep.plot = function(N, beta, I.0, p, epsilon, theta, gamma, TimeH, TimeNH, reps = 10){
   line.plot = function(data){
-    size = 0.2
+    size = 0.3
     list(geom_line(data = data, aes(x = Day, y = Infected, color = "Daily Infected"), size = size),
-         geom_area(data = data, aes(x = Day, y = Infected), fill = "coral", alpha = 0.05),
+         geom_area(data = data, aes(x = Day, y = Infected), fill = infected_col, alpha = 0.04),
          geom_line(data = data, aes(x = Day, y = Total.Dead, color = "Total Dead"), size = size),
-         geom_line(data = data, aes(x = Day, y = Susceptible, color = "Susceptible"), size = size),
-         geom_line(data = data, aes(x = Day, y = Total.Recovered, color = "Total Recoverd"), size = size),
          geom_line(data = data, aes(x = Day, y = Total.In.Hospital, color = "Daily Hospitalized"), size = size),
          geom_line(data = data, aes(x = Day, y = Daily.New.Case, color = "Daily New Case"), size = size),
-         scale_color_manual(values = c("Daily Infected" = "red", 
-                                      "Total Dead"= "black", 
-                                      "Susceptible" = "darkorange", 
-                                      "Total Recoverd" = "green", 
-                                      "Daily Hospitalized" = "darkorchid1", 
-                                      "Daily New Case"= "blue2"))
+         scale_color_manual(values = c("Daily Infected" = infected_col,
+                                       "Daily New Case"= newcase_col,
+                                       "Daily Hospitalized" = hospital_col,
+                                       "Total Dead" = dead_col),
+                            breaks = c("Daily Infected",
+                                       "Daily New Case",
+                                       "Daily Hospitalized",
+                                       "Total Dead")
+                                      )
     )
   }
   if(TimeNH == 1){
@@ -208,7 +214,7 @@ model.rep.plot = function(N, beta, I.0, p, epsilon, theta, gamma, TimeH, TimeNH,
   } else {
     title = "SIHRD Model without quarantine"
   }
-  plot = ggplot() + labs(y = "Population", title = title, color = "Compartment") + theme_minimal()
+  plot = ggplot() + labs(y = "Population", title = title, color = "Compartment") + theme_minimal() + xlim(0, 50) + ylim(0, 3500)
   for(i in 1:reps){
     data = model.data(N, beta, I.0, p, epsilon, theta, gamma, TimeH, TimeNH)
     plot = plot + line.plot(data)
@@ -216,34 +222,43 @@ model.rep.plot = function(N, beta, I.0, p, epsilon, theta, gamma, TimeH, TimeNH,
   plot
   return(plot)
 }
+a = model.rep.plot(10000, 2, 5, 0.5, 0.05, 0.9, 0.9, 10, 1)
+b = model.rep.plot(10000, 2, 5, 0.5, 0.05, 0.9, 0.9, 10, 5)
+a
+b
+```
 
+```{r}
+b + annotate(geom = "curve", xend = 33, yend = 800, x = 40, y = 500, curvature = .2, arrow = arrow(length = unit(2, "mm")), color = dead_col, size=0.7, alpha=0.6) +
+  annotate(geom = "text", x = 26, y = 850, label = "Total Death", hjust = "left", color = dead_col) + 
+  
+  annotate(geom = "curve", xend = 25, yend = 2000, x = 11, y = 1070, curvature = -.2, arrow = arrow(length = unit(2, "mm")), color = newcase_col, size=0.7, alpha=0.6) +
+  annotate(geom = "text", x = 25.5, y = 2100, label = "Max Daily New Case", hjust = "left", color = newcase_col) + 
+  
+  annotate(geom = "curve", xend = 25, yend = 2600, x = 11, y = 2000, curvature = -.2, arrow = arrow(length = unit(2, "mm")), color = "#6699FF", size=0.7, alpha=0.6) + 
+  annotate(geom = "text", x = 25.5, y = 2650, label = "Total Infected", hjust = "left", color = "#6699FF") +
+  
+  annotate(geom = "curve", xend = 25, yend = 1400, x = 14, y = 230, curvature = -.2, arrow = arrow(length = unit(2, "mm")), color = hospital_col, size=0.7, alpha=0.6) + 
+  annotate(geom = "text", x = 25.5, y = 1500, label = "Max Daily Hospitalized", hjust = "left", color = hospital_col) +  theme(legend.position="bottom")
+```
+
+```{r}
 # SIHRD model with 10 reps and all parameters set 
 # at lowest level under 2 conditions: with and without quarantine
-a = model.rep.plot(10000, 2, 5, 0.5, 0.05, 0.9, 0.9, 10, 1)
-a + annotate(geom = "curve", xend = 65, yend = 1600, x = 73, y = 400, curvature = .2, arrow = arrow(length = unit(1, "mm")), size=0.7, alpha=0.6) +
-  annotate(geom = "text", x = 57, y = 1800, label = "Total Death", hjust = "left") + 
+a + annotate(geom = "curve", xend = 32, yend = 700, x = 37, y = 400, curvature = .2, arrow = arrow(length = unit(2, "mm")), color = dead_col, size=0.7, alpha=0.6) +
+  annotate(geom = "text", x = 25, y = 700, label = "Total Death", hjust = "left", color = dead_col) + 
   
-  annotate(geom = "curve", xend = 24, yend = 2150, x = 13.5, y = 550, curvature = -.2, arrow = arrow(length = unit(2, "mm")), color = "blue", size=0.7, alpha=0.6) +
-  annotate(geom = "text", x = 24, y = 2300, label = "Max Daily New Case", hjust = "left", color = "blue") + 
+  annotate(geom = "curve", xend = 24, yend = 2200, x = 13.5, y = 680, curvature = -.2, arrow = arrow(length = unit(2, "mm")), color = "#6699FF", size=0.7, alpha=0.6) +
+  annotate(geom = "text", x = 24.5, y = 2300, label = "Total Infected" , hjust = "left", color = "#6699FF") + 
   
-  annotate(geom = "curve", xend = 30, yend = 1300, x = 15, y = 680, curvature = -.2, arrow = arrow(length = unit(2, "mm")), color = "red", size=0.7, alpha=0.6) + 
-  annotate(geom = "text", x = 31, y = 1400, label = "Total Infected", hjust = "left", color = "red") +
+  annotate(geom = "curve", xend = 24, yend = 1600, x = 13.5, y = 550, curvature = -.2, arrow = arrow(length = unit(2, "mm")), color = newcase_col, size=0.7, alpha=0.6) + 
+  annotate(geom = "text", x = 24.5, y = 1700, label = "Max Daily New Case", hjust = "left", color = newcase_col) +
   
-  annotate(geom = "curve", xend = 30, yend = 600, x = 18, y = 110, curvature = -.2, arrow = arrow(length = unit(2, "mm")), color = "darkorchid1", size=0.7, alpha=0.6) + 
-  annotate(geom = "text", x = 31, y = 650, label = "Max Daily Hospitalized", hjust = "left", color = "darkorchid1") +  theme(legend.position="bottom")
-b = model.rep.plot(10000, 2, 5, 0.5, 0.05, 0.9, 0.9, 10, 5)
-b + annotate(geom = "curve", xend = 70, yend = 1000, x = 62, y = 600, curvature = -.2, arrow = arrow(length = unit(1, "mm")), size=0.7, alpha=0.6) +
-  annotate(geom = "text", x = 71, y = 1050, label = "Total Death", hjust = "left") + 
-  
-  annotate(geom = "curve", xend = 24, yend = 2400, x = 11, y = 1070, curvature = -.2, arrow = arrow(length = unit(2, "mm")), color = "blue", size=0.7, alpha=0.6) +
-  annotate(geom = "text", x = 24, y = 2600, label = "Max Daily New Case", hjust = "left", color = "blue") + 
-  
-  annotate(geom = "curve", xend = 30, yend = 1500, x = 16, y = 1000, curvature = -.2, arrow = arrow(length = unit(2, "mm")), color = "red", size=0.7, alpha=0.6) + 
-  annotate(geom = "text", x = 31, y = 1600, label = "Total Infected", hjust = "left", color = "red") +
-  
-  annotate(geom = "curve", xend = 30, yend = 900, x = 14, y = 230, curvature = -.2, arrow = arrow(length = unit(2, "mm")), color = "darkorchid1", size=0.7, alpha=0.6) + 
-  annotate(geom = "text", x = 31, y = 1000, label = "Max Daily Hospitalized", hjust = "left", color = "darkorchid1")  +  theme(legend.position="bottom")
+  annotate(geom = "curve", xend = 24, yend = 1200, x = 18, y = 110, curvature = -.2, arrow = arrow(length = unit(2, "mm")), color = hospital_col, size=0.7, alpha=0.6) + 
+  annotate(geom = "text", x = 24.5, y = 1250, label = "Max Daily Hospitalized", hjust = "left", color = hospital_col) +  theme(legend.position="bottom")
 ```
+
+
 
 ## 2. Factorial Experiment Design 
 
@@ -336,6 +351,8 @@ Death.Anova.reduced = aov(DeathProportion ~ Beta + HospitalizationRate + Hospita
 
 summary(Death.Anova.reduced)
 summary(lm(DeathProportion ~ Beta + HospitalizationRate + HospitalizedRecoveryRate + NonHospitalizedRecoveryRate + InfectionTime + Beta:HospitalizationRate + Beta:HospitalizedRecoveryRate + Beta:NonHospitalizedRecoveryRate + HospitalizationRate:HospitalizedRecoveryRate + Beta:InfectionTime + HospitalizationRate:HospitalizedRecoveryRate + HospitalizationRate:NonHospitalizedRecoveryRate + HospitalizationRate:InfectionTime + HospitalizedRecoveryRate:InfectionTime + NonHospitalizedRecoveryRate:InfectionTime, data = result_table))
+
+xtable(summary(Death.Anova.reduced))
 ```
 
 ##### Main Effects Plot
@@ -426,7 +443,7 @@ residual.plot(Infected.Anova)
 
 Infected.Anova.reduced = aov(InfectedProportion ~ Beta + HospitalizationRate + InfectionTime + Beta:HospitalizationRate + Beta:InfectionTime + HospitalizationRate:InfectionTime, data = result_table)
 
-summary(Infected.Anova.reduced)
+xtable(summary(Infected.Anova.reduced))
 residual.plot(Infected.Anova.reduced)
 
 summary(lm(InfectedProportion ~ Beta + HospitalizationRate + InfectionTime + Beta:HospitalizationRate + Beta:InfectionTime + HospitalizationRate:InfectionTime, data = result_table))
@@ -502,7 +519,7 @@ summary(MaxCase.Anova)
 residual.plot(MaxCase.Anova)
 
 MaxCase.Anova.reduced = aov(MaxCaseProportion ~ Population + Beta + HospitalizationRate + InfectionTime + Population:Beta + Population:Beta + Population:InfectionTime + Beta:HospitalizationTime + Beta:InfectionTime, data=result_table)
-summary(MaxCase.Anova.reduced)
+xtable(summary(MaxCase.Anova.reduced))
 summary(lm(MaxCaseProportion ~ Population + Beta + HospitalizationRate + InfectionTime + Population:Beta + Population:Beta + Population:InfectionTime + Beta:HospitalizationTime + Beta:InfectionTime, data = result_table))
 ```
 
@@ -579,7 +596,7 @@ summary(MaxHospital.Anova)
 residual.plot(MaxHospital.Anova)
 
 MaxHospital.Anova.reduced = aov(MaxHospitalProportion ~ Beta + HospitalizationRate + HospitalizationTime + InfectionTime + Beta:HospitalizationRate + Beta:HospitalizationTime + Beta:InfectionTime + HospitalizationRate:HospitalizationTime + HospitalizationRate:InfectionTime, data = result_table)
-summary(MaxHospital.Anova.reduced)
+xtable(summary(MaxHospital.Anova.reduced))
 summary(lm(MaxHospitalProportion ~ Beta + HospitalizationRate + HospitalizationTime + InfectionTime + Beta:HospitalizationRate + Beta:HospitalizationTime + Beta:InfectionTime + HospitalizationRate:HospitalizationTime + HospitalizationRate:InfectionTime, data = result_table))
 ```
 
